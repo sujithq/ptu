@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.2.1"></a>
+## [0.2.1](https://www.github.com/sujithq/ptu/releases/tag/v0.2.1) (2026-07-11)
+
+### 📚 Documentation
+
+* ship a consumer-focused readme in the NuGet package ([ab9473f](https://www.github.com/sujithq/ptu/commit/ab9473f26c802b8cc5f79d8a307c058bf3cc3ab6))
+
+### ⚙️ CI/CD
+
+* automate releases with versionize ([45c63d6](https://www.github.com/sujithq/ptu/commit/45c63d6e96c4f0010ec1482ef8a08b4dbb280ef8))
+
 <a name="0.2.0"></a>
 ## [0.2.0](https://www.github.com/sujithq/ptu/releases/tag/v0.2.0) (2026-07-11)
 
