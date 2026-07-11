@@ -1,0 +1,5 @@
+# Normalize line endings: store LF in the repo, checkout per platform default.
+* text=auto
+
+*.png binary
+*.ico binary
