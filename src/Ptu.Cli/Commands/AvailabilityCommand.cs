@@ -1,0 +1,204 @@
+using System.ComponentModel;
+using System.Globalization;
+using Ptu.Cli.Availability;
+using Ptu.Cli.Configuration;
+using Spectre.Console;
+using Spectre.Console.Cli;
+
+namespace Ptu.Cli.Commands;
+
+public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store, IAvailabilityClient client)
+    : AsyncCommand<AvailabilityCommand.Settings>
+{
+    public sealed class Settings : CommandSettings
+    {
+        [CommandOption("-r|--region <REGION>")]
+        [Description("Region(s) to check. Repeatable or comma-separated. Overrides the preset.")]
+        public string[] Regions { get; init; } = [];
+
+        [CommandOption("-m|--model <MODEL>")]
+        [Description("Model(s) to check. Repeatable or comma-separated. Overrides the preset.")]
+        public string[] Models { get; init; } = [];
+
+        [CommandOption("-p|--preset <NAME>")]
+        [Description("Preset supplying default regions and models. Defaults to the active preset.")]
+        public string? Preset { get; init; }
+
+        [CommandOption("-t|--type <TYPE>")]
+        [Description("PTU type(s) to show: datazone, regional, or global. Defaults to datazone.")]
+        public string[] Types { get; init; } = [];
+    }
+
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    {
+        PresetConfig config;
+        try
+        {
+            config = store.Load();
+        }
+        catch (InvalidOperationException ex)
+        {
+            console.MarkupLineInterpolated($"[red]Error:[/] {ex.Message}");
+            return 1;
+        }
+
+        var presetName = settings.Preset ?? config.DefaultPreset;
+        if (!config.Presets.TryGetValue(presetName, out var preset))
+        {
+            console.MarkupLineInterpolated($"[red]Error:[/] Unknown preset '{presetName}'. Run 'ptu preset list' to see available presets.");
+            return 1;
+        }
+
+        var regions = CommandInput.Normalize(settings.Regions);
+        if (regions.Count == 0)
+        {
+            regions = CommandInput.Normalize(preset.Regions);
+        }
+
+        var models = CommandInput.Normalize(settings.Models);
+        if (models.Count == 0)
+        {
+            models = CommandInput.Normalize(preset.Models);
+        }
+
+        if (regions.Count == 0)
+        {
+            console.MarkupLineInterpolated($"[red]Error:[/] No regions specified. Pass --region or add regions to the '{presetName}' preset.");
+            return 1;
+        }
+
+        if (models.Count == 0)
+        {
+            console.MarkupLineInterpolated($"[red]Error:[/] No models specified. Pass --model or add models to the '{presetName}' preset.");
+            return 1;
+        }
+
+        var types = new List<PtuType>();
+        foreach (var raw in settings.Types.SelectMany(v => v.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+        {
+            if (!PtuTypes.TryParse(raw, out var type))
+            {
+                console.MarkupLineInterpolated($"[red]Error:[/] Unknown PTU type '{raw}'. Valid values: datazone, regional, global.");
+                return 1;
+            }
+
+            if (!types.Contains(type))
+            {
+                types.Add(type);
+            }
+        }
+
+        if (types.Count == 0)
+        {
+            types.Add(PtuType.DataZone);
+        }
+
+        var endpoint = ResolveOrPromptEndpoint(console, store, config);
+        if (endpoint is null)
+        {
+            return 1;
+        }
+
+        AvailabilitySnapshot snapshot;
+        try
+        {
+            snapshot = await client.GetAsync(endpoint, cancellationToken);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            console.MarkupLineInterpolated($"[red]Error:[/] Failed to query the availability API: {ex.Message}");
+            return 2;
+        }
+
+        if (!string.Equals(snapshot.Status, "succeeded", StringComparison.OrdinalIgnoreCase))
+        {
+            console.MarkupLineInterpolated($"[red]Error:[/] The availability API reported status '{snapshot.Status}'.");
+            return 2;
+        }
+
+        console.Write(BuildTable(snapshot, regions, models, types));
+
+        if (snapshot.GeneratedAt is { } generatedAt)
+        {
+            console.MarkupLineInterpolated($"[grey]Data generated at {generatedAt.ToString("u", CultureInfo.InvariantCulture)}[/]");
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Returns the configured API endpoint. On first use it prompts for the endpoint and stores it;
+    /// in non-interactive sessions it reports an error and returns null.
+    /// </summary>
+    internal static string? ResolveOrPromptEndpoint(IAnsiConsole console, IPresetStore store, PresetConfig config)
+    {
+        if (!string.IsNullOrWhiteSpace(config.ApiEndpoint))
+        {
+            return config.ApiEndpoint;
+        }
+
+        if (!console.Profile.Capabilities.Interactive)
+        {
+            console.MarkupLine("[red]Error:[/] No availability API endpoint configured. Run 'ptu availability' once in an interactive terminal to set it.");
+            return null;
+        }
+
+        var endpoint = console.Prompt(
+            new TextPrompt<string>("Availability API endpoint:")
+                .Validate(value =>
+                    CommandInput.IsValidHttpUrl(value)
+                        ? ValidationResult.Success()
+                        : ValidationResult.Error("Enter an absolute http(s) URL.")));
+
+        config.ApiEndpoint = endpoint;
+        store.Save(config);
+        console.MarkupLine("[grey]Endpoint saved to configuration.[/]");
+        return endpoint;
+    }
+
+    private static Table BuildTable(AvailabilitySnapshot snapshot, List<string> regions, List<string> models, List<PtuType> types)
+    {
+        var table = new Table().Border(TableBorder.Rounded);
+        table.AddColumn("Model");
+        table.AddColumn("Region");
+        foreach (var type in types)
+        {
+            table.AddColumn(new TableColumn($"{PtuTypes.DisplayName(type)} PTU").Centered());
+            table.AddColumn(new TableColumn($"{PtuTypes.DisplayName(type)} capacity").RightAligned());
+        }
+
+        foreach (var model in models)
+        {
+            var firstRowOfGroup = true;
+            foreach (var region in regions)
+            {
+                var modelData = snapshot.FindRegion(region)?.FindModel(model);
+                var cells = new List<string>
+                {
+                    firstRowOfGroup ? Markup.Escape(model) : string.Empty,
+                    Markup.Escape(region),
+                };
+
+                foreach (var type in types)
+                {
+                    if (modelData is null)
+                    {
+                        cells.Add("[grey]not tracked[/]");
+                        cells.Add("[grey]-[/]");
+                    }
+                    else
+                    {
+                        var offer = modelData.Offers[type];
+                        cells.Add(offer.Available ? "[green]yes[/]" : "[red]no[/]");
+                        cells.Add(offer.Capacity?.ToString(CultureInfo.InvariantCulture) ?? "-");
+                    }
+                }
+
+                table.AddRow(cells.ToArray());
+                firstRowOfGroup = false;
+            }
+        }
+
+        return table;
+    }
+}

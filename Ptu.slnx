@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Ptu.Cli/Ptu.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Ptu.Cli.Tests/Ptu.Cli.Tests.csproj" />
+  </Folder>
+</Solution>
