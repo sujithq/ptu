@@ -5,13 +5,15 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write # create the GitHub release
-  id-token: write # NuGet trusted publishing (OIDC) + attestation signing
-  attestations: write # store build provenance
+  contents: read
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release
+      id-token: write # NuGet trusted publishing (OIDC) + attestation signing
+      attestations: write # store build provenance
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -30,6 +32,7 @@ jobs:
         run: dotnet pack src/Ptu.Cli --configuration Release
 
       - name: Attest build provenance
+        id: attest
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
         with:
           subject-path: artifacts/*.nupkg
@@ -53,4 +56,6 @@ jobs:
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ github.ref_name }}" artifacts/*.nupkg --title "${{ github.ref_name }}" --notes-file RELEASE_NOTES.md
+        run: |
+          cp "${{ steps.attest.outputs.bundle-path }}" "sujithq.ptu.cli.${GITHUB_REF_NAME#v}.intoto.jsonl"
+          gh release create "${{ github.ref_name }}" artifacts/*.nupkg "sujithq.ptu.cli.${GITHUB_REF_NAME#v}.intoto.jsonl" --title "${{ github.ref_name }}" --notes-file RELEASE_NOTES.md
