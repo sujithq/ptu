@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.2.2"></a>
+## [0.2.2](https://www.github.com/sujithq/ptu/releases/tag/v0.2.2) (2026-07-11)
+
+### 📚 Documentation
+
+* add community files for open source hygiene ([504e816](https://www.github.com/sujithq/ptu/commit/504e81659aa983771444cfcee8812bcd7a8afc8b))
+
+### ⚙️ CI/CD
+
+* add dependabot updates and CodeQL scanning ([905bf28](https://www.github.com/sujithq/ptu/commit/905bf2822860faf76b4e1a924ad8106366ab293a))
+* harden supply chain with pinned actions, Scorecard, and provenance ([4ed9d25](https://www.github.com/sujithq/ptu/commit/4ed9d2573e9a81429082ed3c9654bbe6b644f2ab))
+* scope release permissions to the job and attach provenance to releases ([48a6dbd](https://www.github.com/sujithq/ptu/commit/48a6dbdc9d53dab7e1541f96b260f72ecde123ec))
+* **deps:** bump actions/checkout from 5.0.1 to 7.0.0 ([#1](https://www.github.com/sujithq/ptu/issues/1)) ([055f4b4](https://www.github.com/sujithq/ptu/commit/055f4b43266961b9d168c090db89b84a65a0fbca))
+
+### ⚙️ CI/CD
+
+* Bump coverlet.collector and 2 others ([#2](https://www.github.com/sujithq/ptu/issues/2)) ([171fd52](https://www.github.com/sujithq/ptu/commit/171fd5204615664a1ace16a4195040a5710eb7bc))
+
 <a name="0.2.1"></a>
 ## [0.2.1](https://www.github.com/sujithq/ptu/releases/tag/v0.2.1) (2026-07-11)
 
