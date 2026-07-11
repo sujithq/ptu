@@ -15,8 +15,10 @@ public static class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        // Banner only on the first run in a terminal session, and never into pipes.
-        if (!Console.IsOutputRedirected && new FileSessionMarker().TryMarkFirstRun())
+        // Banner once per terminal session, never into pipes, and not when help
+        // is about to render it anyway (see BannerHelpProvider).
+        var firstRunInSession = !Console.IsOutputRedirected && new FileSessionMarker().TryMarkFirstRun();
+        if (firstRunInSession && !IsHelpInvocation(args))
         {
             WriteBanner(AnsiConsole.Console);
         }
@@ -30,8 +32,14 @@ public static class Program
     }
 
     /// <summary>Writes the FIGlet startup banner.</summary>
-    public static void WriteBanner(IAnsiConsole console) =>
-        console.Write(new FigletText("ptu").LeftJustified().Color(Color.DodgerBlue1));
+    public static void WriteBanner(IAnsiConsole console) => console.Write(CreateBanner());
+
+    /// <summary>The ptu FIGlet banner, shared by the startup path and help output.</summary>
+    internal static FigletText CreateBanner() => new FigletText("ptu").LeftJustified().Color(Color.DodgerBlue1);
+
+    /// <summary>True when the invocation renders help (no command, -h, or --help).</summary>
+    internal static bool IsHelpInvocation(string[] args) =>
+        args.Length == 0 || args.Contains("-h") || args.Contains("--help");
 
     /// <summary>Production service registrations. Tests register fakes instead.</summary>
     public static void ConfigureServices(IServiceCollection services)
@@ -48,6 +56,7 @@ public static class Program
     {
         config.SetApplicationName("ptu");
         config.SetApplicationVersion(GetVersion());
+        config.SetHelpProvider(new BannerHelpProvider(config.Settings));
 
         config.AddCommand<AvailabilityCommand>("availability")
             .WithDescription("Show PTU availability for regions and models (data zone by default).")

@@ -13,7 +13,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>ptu</ToolCommandName>
     <PackageId>sujithq.ptu.cli</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Description>CLI to check Azure PTU availability (data zone, regional, global) per region and model, with named presets.</Description>
     <Authors>Sujith Quintelier</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
