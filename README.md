@@ -1,5 +1,11 @@
 # ptu
 
+[![NuGet](https://img.shields.io/nuget/v/sujithq.ptu.cli?logo=nuget)](https://www.nuget.org/packages/sujithq.ptu.cli)
+[![Downloads](https://img.shields.io/nuget/dt/sujithq.ptu.cli)](https://www.nuget.org/packages/sujithq.ptu.cli)
+[![ci](https://github.com/sujithq/ptu/actions/workflows/ci.yml/badge.svg)](https://github.com/sujithq/ptu/actions/workflows/ci.yml)
+[![release](https://github.com/sujithq/ptu/actions/workflows/release.yml/badge.svg)](https://github.com/sujithq/ptu/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A .NET 11 CLI base built with [Spectre.Console](https://spectreconsole.net), tested with xUnit, and wired for AI-assisted QA via GitHub Copilot agents and [APM](https://github.com/microsoft/apm)-managed skills.
 
 ## Layout

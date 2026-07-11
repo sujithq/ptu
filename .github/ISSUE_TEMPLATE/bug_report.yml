@@ -1,0 +1,39 @@
+name: Bug report
+description: Something in ptu doesn't work as expected
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: ptu version
+      description: Output of `ptu --version`
+      placeholder: 0.2.1
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      description: The exact command you ran (redact private endpoints)
+      placeholder: ptu availability -r swedencentral -m gpt-5-mini
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Output, error message, or exit code (redact private endpoints)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS and .NET runtime version (`dotnet --version`)
+      placeholder: Windows 11, .NET 10.0.2
