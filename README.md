@@ -15,7 +15,8 @@ A .NET 11 CLI base built with [Spectre.Console](https://spectreconsole.net), tes
 
 ## Prerequisites
 
-- .NET SDK `11.0.100-preview.5` or later
+- To **install and run** the tool: .NET 10 (LTS) or .NET 11 runtime
+- To **build** this repo: .NET SDK `11.0.100-preview.5` or later (the package multi-targets `net10.0;net11.0`)
 - [APM CLI](https://github.com/microsoft/apm) (only needed to manage skills)
 
 ## Build, test, run
@@ -23,21 +24,22 @@ A .NET 11 CLI base built with [Spectre.Console](https://spectreconsole.net), tes
 ```pwsh
 dotnet build
 dotnet test
-dotnet run --project src/Ptu.Cli -- availability -r swedencentral -m gpt-4.1
+dotnet run --project src/Ptu.Cli -f net10.0 -- availability -r swedencentral -m gpt-4.1
 ```
 
 ## Install as a dotnet tool
 
-The CLI packs as a dotnet tool (package `Ptu.Cli`, command `ptu`):
+From [NuGet](https://www.nuget.org/packages/sujithq.ptu.cli) (package `sujithq.ptu.cli`, command `ptu`):
 
 ```pwsh
-dotnet pack src/Ptu.Cli -c Release                       # produces artifacts/Ptu.Cli.<version>.nupkg
-dotnet tool install --global Ptu.Cli --add-source ./artifacts
+dotnet tool install --global sujithq.ptu.cli
 ptu --version
 ptu availability
 ```
 
-Update with `dotnet tool update --global Ptu.Cli --add-source ./artifacts` (bump `<Version>` in [Ptu.Cli.csproj](src/Ptu.Cli/Ptu.Cli.csproj) first); remove with `dotnet tool uninstall --global Ptu.Cli`.
+Update with `dotnet tool update --global sujithq.ptu.cli`; remove with `dotnet tool uninstall --global sujithq.ptu.cli`.
+
+For a local build: `dotnet pack src/Ptu.Cli -c Release` then `dotnet tool install --global sujithq.ptu.cli --add-source ./artifacts`.
 
 ## PTU availability
 

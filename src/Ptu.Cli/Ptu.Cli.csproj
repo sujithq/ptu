@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net11.0</TargetFramework>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>ptu</AssemblyName>
@@ -12,10 +12,15 @@
   <PropertyGroup Label="dotnet tool packaging">
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>ptu</ToolCommandName>
-    <PackageId>Ptu.Cli</PackageId>
+    <PackageId>sujithq.ptu.cli</PackageId>
     <Version>0.1.0</Version>
     <Description>CLI to check Azure PTU availability (data zone, regional, global) per region and model, with named presets.</Description>
     <Authors>Sujith Quintelier</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/sujithq/ptu</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sujithq/ptu</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>dotnet-tool;azure;ptu;openai;availability;spectre-console</PackageTags>
     <PackageOutputPath>$(MSBuildThisFileDirectory)..\..\artifacts\</PackageOutputPath>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
