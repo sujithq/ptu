@@ -81,6 +81,17 @@ ptu preset reset [--all]                                # restore factory values
 2. Register it in `Program.Configure`.
 3. Add tests in `tests/Ptu.Cli.Tests` via `CommandAppTester` — it reuses `Program.Configure`, so tests exercise the real wiring.
 
+## Releasing
+
+Releases are driven by conventional commits via [Versionize](https://github.com/versionize/versionize) (`fix:` → patch, `feat:` → minor, `feat!:`/`BREAKING CHANGE` → major):
+
+```pwsh
+dotnet versionize                        # bumps csproj version, updates CHANGELOG.md, commits, tags vX.Y.Z
+git push --follow-tags origin main       # tag push triggers .github/workflows/release.yml
+```
+
+The release workflow tests, packs, publishes to NuGet.org (trusted publishing), and creates a GitHub release with notes generated from the conventional commits (`dotnet versionize changelog`).
+
 ## AI-assisted QA
 
 - **`@qa` agent** ([.github/agents/qa.agent.md](.github/agents/qa.agent.md)): builds, tests, checks coverage and test quality, and reviews diffs. Only ever edits `tests/`; hands off to `test-quality-auditor` and `code-testing-generator` for deep audits and test generation.
