@@ -22,12 +22,12 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>dotnet-tool;azure;ptu;openai;availability;spectre-console</PackageTags>
     <PackageOutputPath>$(MSBuildThisFileDirectory)..\..\artifacts\</PackageOutputPath>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="Ptu.Cli.Tests" />
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="PACKAGE.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
