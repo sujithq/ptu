@@ -6,17 +6,18 @@ on:
 
 permissions:
   contents: write # create the GitHub release
-  id-token: write # NuGet trusted publishing (OIDC)
+  id-token: write # NuGet trusted publishing (OIDC) + attestation signing
+  attestations: write # store build provenance
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0 # full history + tags for versionize release notes
 
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           dotnet-version: |
             10.0.x
@@ -28,11 +29,16 @@ jobs:
       - name: Pack
         run: dotnet pack src/Ptu.Cli --configuration Release
 
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-path: artifacts/*.nupkg
+
       # Exchanges this workflow's OIDC token for a short-lived NuGet API key.
       # Requires a Trusted Publishing policy on nuget.org for sujithq/ptu + release.yml.
       - name: NuGet login (trusted publishing)
         id: login
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         with:
           user: sujithq
 
