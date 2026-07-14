@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Net;
 using Ptu.Cli.Availability;
 using Ptu.Cli.Configuration;
 using Spectre.Console;
@@ -102,7 +103,15 @@ public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store
         AvailabilitySnapshot snapshot;
         try
         {
-            snapshot = await client.GetAsync(endpoint, cancellationToken);
+            snapshot = await client.GetAsync(endpoint, config.AuthCookie, cancellationToken);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            console.MarkupLineInterpolated($"[red]Error:[/] The availability API rejected the request ({(int)ex.StatusCode} {ex.StatusCode}).");
+            console.MarkupLine(config.AuthCookie is null
+                ? "The API requires authentication. Copy the session cookie from your browser's DevTools and run [blue]ptu auth set \"<name>=<value>\"[/]."
+                : "The stored session cookie was not accepted (it may have expired). Refresh it with [blue]ptu auth set \"<name>=<value>\"[/].");
+            return 2;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {

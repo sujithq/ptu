@@ -30,7 +30,8 @@ public sealed class PresetResetCommand(IAnsiConsole console, IPresetStore store)
         if (settings.All)
         {
             var fresh = PtuDefaults.CreateConfig();
-            fresh.ApiEndpoint = config.ApiEndpoint; // Resetting presets must not discard the API endpoint.
+            fresh.ApiEndpoint = config.ApiEndpoint; // Resetting presets must not discard the API endpoint...
+            fresh.AuthCookie = config.AuthCookie;   // ...or the auth cookie.
             config = fresh;
         }
         else

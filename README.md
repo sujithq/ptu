@@ -69,6 +69,18 @@ ptu endpoint show
 ptu endpoint set https://your-availability-api.example.com/api/availability/azure-ptu
 ```
 
+## Authentication
+
+If the availability API is secured, `ptu availability` fails with an authentication hint (exit code `2`). Sign in to the API in your browser, copy its session cookie (DevTools → Application → Cookies), and store it as a `name=value` pair — it is kept in `%APPDATA%/ptu/config.json` and sent as a `Cookie` header on every request:
+
+```pwsh
+ptu auth set "session_cookie=eyJ0b2tlbiI6..."
+ptu auth show                                           # status, user, and expiry - never the value
+ptu auth clear
+```
+
+When the cookie expires the API starts rejecting requests again; repeat `ptu auth set` with a fresh value.
+
 ## Presets
 
 Named region/model profiles stored in `%APPDATA%/ptu/config.json` (alongside the `apiEndpoint`); one is the active default used by `availability`.

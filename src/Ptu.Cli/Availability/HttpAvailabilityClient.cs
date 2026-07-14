@@ -6,17 +6,42 @@ namespace Ptu.Cli.Availability;
 /// <summary>Queries an azure-ptu availability endpoint.</summary>
 public sealed class HttpAvailabilityClient(HttpClient http) : IAvailabilityClient
 {
+    /// <summary>The API sits behind a browser-oriented gateway; a browser user agent keeps it happy.</summary>
+    private const string UserAgent =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36";
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<AvailabilitySnapshot> GetAsync(string endpoint, CancellationToken cancellationToken)
+    public async Task<AvailabilitySnapshot> GetAsync(string endpoint, string? authCookie, CancellationToken cancellationToken)
     {
-        using var response = await http.GetAsync(endpoint, cancellationToken);
+        using var request = CreateRequest(endpoint, authCookie);
+        using var response = await http.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         var dto = await response.Content.ReadFromJsonAsync<ApiResponse>(JsonOptions, cancellationToken)
             ?? throw new InvalidOperationException("The availability API returned an empty response.");
 
         return Map(dto);
+    }
+
+    /// <summary>Builds a browser-like GET request; requires the HttpClient handler to have UseCookies disabled.</summary>
+    internal static HttpRequestMessage CreateRequest(string endpoint, string? authCookie)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+        request.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+        request.Headers.TryAddWithoutValidation("Accept", "*/*");
+
+        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+        {
+            request.Headers.TryAddWithoutValidation("Referer", $"{uri.Scheme}://{uri.Authority}/availability");
+        }
+
+        if (!string.IsNullOrWhiteSpace(authCookie))
+        {
+            request.Headers.TryAddWithoutValidation("Cookie", authCookie);
+        }
+
+        return request;
     }
 
     private static AvailabilitySnapshot Map(ApiResponse dto) => new()

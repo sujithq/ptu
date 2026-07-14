@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Ptu.Cli.Availability;
 using Ptu.Cli.Commands;
+using Ptu.Cli.Commands.Auth;
 using Ptu.Cli.Commands.Endpoint;
 using Ptu.Cli.Commands.Presets;
 using Ptu.Cli.Configuration;
@@ -45,7 +46,15 @@ public static class Program
     public static void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<IPresetStore>(_ => new FilePresetStore());
-        services.AddSingleton(_ => new HttpClient { Timeout = TimeSpan.FromSeconds(30) });
+        services.AddSingleton(_ => new HttpClient(new SocketsHttpHandler
+        {
+            // The auth cookie is set manually per request; automatic cookie handling would discard it.
+            UseCookies = false,
+            AutomaticDecompression = System.Net.DecompressionMethods.All,
+        })
+        {
+            Timeout = TimeSpan.FromSeconds(30),
+        });
         services.AddSingleton<IAvailabilityClient, HttpAvailabilityClient>();
     }
 
@@ -74,6 +83,21 @@ public static class Program
             endpoint.AddCommand<EndpointSetCommand>("set")
                 .WithDescription("Set the availability API endpoint.")
                 .WithExample("endpoint", "set", "https://your-availability-api.example.com/api/availability/azure-ptu");
+        });
+
+        config.AddBranch("auth", auth =>
+        {
+            auth.SetDescription("Manage the session cookie used to authenticate against the availability API.");
+
+            auth.AddCommand<AuthShowCommand>("show")
+                .WithDescription("Show auth cookie status (never prints the value).");
+
+            auth.AddCommand<AuthSetCommand>("set")
+                .WithDescription("Store the session cookie (\"name=value\") copied from your browser's DevTools.")
+                .WithExample("auth", "set", "\"session_cookie=abc123\"");
+
+            auth.AddCommand<AuthClearCommand>("clear")
+                .WithDescription("Remove the stored session cookie.");
         });
 
         config.AddBranch("preset", preset =>

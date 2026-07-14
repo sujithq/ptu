@@ -11,9 +11,13 @@ public sealed class FakeAvailabilityClient : IAvailabilityClient
     /// <summary>Endpoint passed to the most recent <see cref="GetAsync"/> call.</summary>
     public string? LastEndpoint { get; private set; }
 
-    public Task<AvailabilitySnapshot> GetAsync(string endpoint, CancellationToken cancellationToken)
+    /// <summary>Auth cookie passed to the most recent <see cref="GetAsync"/> call.</summary>
+    public string? LastAuthCookie { get; private set; }
+
+    public Task<AvailabilitySnapshot> GetAsync(string endpoint, string? authCookie, CancellationToken cancellationToken)
     {
         LastEndpoint = endpoint;
+        LastAuthCookie = authCookie;
         return ThrowOnGet is null
             ? Task.FromResult(Snapshot)
             : Task.FromException<AvailabilitySnapshot>(ThrowOnGet);

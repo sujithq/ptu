@@ -32,6 +32,16 @@ ptu endpoint show
 ptu endpoint set https://your-availability-api.example.com/api/availability/azure-ptu
 ```
 
+## Authentication
+
+If the API is secured, copy its session cookie from a signed-in browser session (DevTools → Application → Cookies) and store it as `name=value`; it is sent as a `Cookie` header on every request:
+
+```shell
+ptu auth set "session_cookie=eyJ0b2tlbiI6..."
+ptu auth show                                             # status and expiry - never the value
+ptu auth clear
+```
+
 ## Manage presets
 
 Named region/model profiles; one is the active default used by `availability`.
