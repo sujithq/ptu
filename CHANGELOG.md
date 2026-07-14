@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.3.0"></a>
+## [0.3.0](https://www.github.com/sujithq/ptu/releases/tag/v0.3.0) (2026-07-14)
+
+### 🚀 Features
+
+* **auth:** implement session cookie management for availability API ([09c71df](https://www.github.com/sujithq/ptu/commit/09c71dfd88e566ef526e85e3bac3e755a88f2657))
+
+### ⚙️ CI/CD
+
+* allow manual scorecard runs via workflow_dispatch ([b375db1](https://www.github.com/sujithq/ptu/commit/b375db166ee3b5c51c7dcf842c4cff01df040e55))
+
 <a name="0.2.2"></a>
 ## [0.2.2](https://www.github.com/sujithq/ptu/releases/tag/v0.2.2) (2026-07-11)
 
