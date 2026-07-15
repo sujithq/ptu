@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.4.0"></a>
+## [0.4.0](https://www.github.com/sujithq/ptu/releases/tag/v0.4.0) (2026-07-15)
+
+### 🚀 Features
+
+* **availability:** add --refresh option to bypass caches and request fresh data ([9ef08af](https://www.github.com/sujithq/ptu/commit/9ef08af57ffe82436683e5c110400e6b52002e1a))
+
 <a name="0.3.0"></a>
 ## [0.3.0](https://www.github.com/sujithq/ptu/releases/tag/v0.3.0) (2026-07-14)
 
