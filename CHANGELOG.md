@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.5.0"></a>
+## [0.5.0](https://www.github.com/sujithq/ptu/releases/tag/v0.5.0) (2026-07-15)
+
+### 🚀 Features
+
+* Add PAYG Data Zone Standard availability support ([adc145c](https://www.github.com/sujithq/ptu/commit/adc145c7ef81bb46f98871390f4380b879980546))
+
 <a name="0.4.0"></a>
 ## [0.4.0](https://www.github.com/sujithq/ptu/releases/tag/v0.4.0) (2026-07-15)
 
