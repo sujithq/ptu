@@ -18,6 +18,7 @@ On first use, `ptu availability` asks for the availability API endpoint and stor
 
 ```shell
 ptu availability                                          # uses the active preset
+ptu availability --refresh                                # bypasses caches and requests fresh data
 ptu availability -r swedencentral,francecentral -m gpt-4.1
 ptu availability -t datazone,global                       # types: datazone (default), regional, global
 ptu availability --preset eu

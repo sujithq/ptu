@@ -205,7 +205,7 @@ public class AuthTests
     [Fact]
     public void CreateRequest_SendsBrowserHeadersAndCookie()
     {
-        using var request = HttpAvailabilityClient.CreateRequest("https://unit.test/api/availability/azure-ptu", Cookie);
+        using var request = HttpAvailabilityClient.CreateRequest("https://unit.test/api/availability/azure-ptu", Cookie, false);
 
         Assert.Equal(HttpMethod.Get, request.Method);
         Assert.Contains("Mozilla/5.0", string.Join(" ", request.Headers.GetValues("User-Agent")));
@@ -217,9 +217,20 @@ public class AuthTests
     [Fact]
     public void CreateRequest_WithoutCookie_OmitsCookieHeader()
     {
-        using var request = HttpAvailabilityClient.CreateRequest("https://unit.test/api", null);
+        using var request = HttpAvailabilityClient.CreateRequest("https://unit.test/api", null, false);
 
         Assert.False(request.Headers.Contains("Cookie"));
+    }
+
+    [Fact]
+    public void CreateRequest_WithRefresh_BypassesCaches()
+    {
+        using var request = HttpAvailabilityClient.CreateRequest("https://unit.test/api", null, true);
+
+        Assert.True(request.Headers.CacheControl?.NoCache);
+        Assert.True(request.Headers.CacheControl?.NoStore);
+        Assert.Equal(TimeSpan.Zero, request.Headers.CacheControl?.MaxAge);
+        Assert.Equal("no-cache", string.Join(",", request.Headers.GetValues("Pragma")));
     }
 
     [Fact]

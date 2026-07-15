@@ -50,10 +50,11 @@ For a local build: `dotnet pack src/Ptu.Cli -c Release` then `dotnet tool instal
 
 ## PTU availability
 
-`ptu availability` shows provisioned-throughput availability grouped by model (one group per model, one row per region). On the very first run it asks for the availability API endpoint and stores it in the config file; the endpoint returns the full dataset, so filtering happens client-side. Data Zone PTU is shown by default; `--type` adds `regional`/`global`.
+`ptu availability` shows provisioned-throughput availability grouped by model (one group per model, one row per region). On the very first run it asks for the availability API endpoint and stores it in the config file; the endpoint returns the full dataset, so filtering happens client-side. Data Zone PTU is shown by default; `--type` adds `regional`/`global`. Pass `--refresh` to bypass caches and request a fresh snapshot.
 
 ```pwsh
 ptu availability                                        # active preset (factory: swedencentral,francecentral × gpt-5.4,gpt-5.4-mini,gpt-5-mini,gpt-4.1)
+ptu availability --refresh                              # bypass caches and request fresh data
 ptu availability -r swedencentral,francecentral -m gpt-4.1
 ptu availability --preset eu -t datazone,global
 ```

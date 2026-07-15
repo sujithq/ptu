@@ -12,9 +12,13 @@ public sealed class HttpAvailabilityClient(HttpClient http) : IAvailabilityClien
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<AvailabilitySnapshot> GetAsync(string endpoint, string? authCookie, CancellationToken cancellationToken)
+    public async Task<AvailabilitySnapshot> GetAsync(
+        string endpoint,
+        string? authCookie,
+        bool refresh,
+        CancellationToken cancellationToken)
     {
-        using var request = CreateRequest(endpoint, authCookie);
+        using var request = CreateRequest(endpoint, authCookie, refresh);
         using var response = await http.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
@@ -25,11 +29,22 @@ public sealed class HttpAvailabilityClient(HttpClient http) : IAvailabilityClien
     }
 
     /// <summary>Builds a browser-like GET request; requires the HttpClient handler to have UseCookies disabled.</summary>
-    internal static HttpRequestMessage CreateRequest(string endpoint, string? authCookie)
+    internal static HttpRequestMessage CreateRequest(string endpoint, string? authCookie, bool refresh)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
         request.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
         request.Headers.TryAddWithoutValidation("Accept", "*/*");
+
+        if (refresh)
+        {
+            request.Headers.CacheControl = new()
+            {
+                NoCache = true,
+                NoStore = true,
+                MaxAge = TimeSpan.Zero,
+            };
+            request.Headers.TryAddWithoutValidation("Pragma", "no-cache");
+        }
 
         if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
         {

@@ -28,6 +28,10 @@ public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store
         [CommandOption("-t|--type <TYPE>")]
         [Description("PTU type(s) to show: datazone, regional, or global. Defaults to datazone.")]
         public string[] Types { get; init; } = [];
+
+        [CommandOption("--refresh")]
+        [Description("Bypass caches and retrieve fresh availability data.")]
+        public bool Refresh { get; init; }
     }
 
     protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
@@ -103,7 +107,7 @@ public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store
         AvailabilitySnapshot snapshot;
         try
         {
-            snapshot = await client.GetAsync(endpoint, config.AuthCookie, cancellationToken);
+            snapshot = await client.GetAsync(endpoint, config.AuthCookie, settings.Refresh, cancellationToken);
         }
         catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {

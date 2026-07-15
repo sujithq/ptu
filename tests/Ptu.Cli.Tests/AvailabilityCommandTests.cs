@@ -35,6 +35,28 @@ public class AvailabilityCommandTests
     }
 
     [Fact]
+    public void Availability_WithRefresh_RequestsFreshData()
+    {
+        var (app, _, client) = TestHost.Create();
+
+        var result = app.Run("availability", "--refresh");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(client.LastRefresh);
+    }
+
+    [Fact]
+    public void Availability_WithoutRefresh_DoesNotRequestFreshData()
+    {
+        var (app, _, client) = TestHost.Create();
+
+        var result = app.Run("availability");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.False(client.LastRefresh);
+    }
+
+    [Fact]
     public void Availability_WithCommaSeparatedValues_SplitsLists()
     {
         var (app, _, _) = TestHost.Create();
