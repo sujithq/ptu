@@ -38,6 +38,7 @@ public sealed class PresetShowCommand(IAnsiConsole console, IPresetStore store) 
         console.MarkupLineInterpolated($"Preset: [bold]{name}[/]{(isActive ? " (active)" : "")}");
         console.MarkupLineInterpolated($"Regions: {string.Join(", ", preset.Regions)}");
         console.MarkupLineInterpolated($"Models: {string.Join(", ", preset.Models)}");
+        console.MarkupLineInterpolated($"Learn tab: {preset.Tab}");
         return 0;
     }
 }

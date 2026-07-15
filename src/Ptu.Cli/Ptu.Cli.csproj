@@ -14,7 +14,7 @@
     <ToolCommandName>ptu</ToolCommandName>
     <PackageId>sujithq.ptu.cli</PackageId>
     <Version>0.4.0</Version>
-    <Description>CLI to check Azure PTU availability (data zone, regional, global) per region and model, with named presets.</Description>
+    <Description>CLI to compare Azure PTU and PAYG model availability per region, with named presets.</Description>
     <Authors>Sujith Quintelier</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/sujithq/ptu</PackageProjectUrl>
@@ -31,6 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AngleSharp" Version="1.5.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
     <PackageReference Include="Spectre.Console" Version="0.57.2" />
     <PackageReference Include="Spectre.Console.Cli" Version="0.55.0" />

@@ -27,7 +27,7 @@ public sealed class PresetUseCommand(IAnsiConsole console, IPresetStore store) :
             return 1;
         }
 
-        if (!config.Presets.ContainsKey(settings.Name))
+        if (!config.Presets.TryGetValue(settings.Name, out var preset))
         {
             console.MarkupLineInterpolated($"[red]Error:[/] Unknown preset '{settings.Name}'. Run 'ptu preset list' to see available presets.");
             return 1;
@@ -36,6 +36,7 @@ public sealed class PresetUseCommand(IAnsiConsole console, IPresetStore store) :
         config.DefaultPreset = settings.Name;
         store.Save(config);
         console.MarkupLineInterpolated($"[green]Active preset is now '{settings.Name}'.[/]");
+        console.MarkupLineInterpolated($"Learn tab: {preset.Tab}");
         return 0;
     }
 }

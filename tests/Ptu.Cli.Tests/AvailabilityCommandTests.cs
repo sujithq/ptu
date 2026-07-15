@@ -8,7 +8,8 @@ public class AvailabilityCommandTests
     [Fact]
     public void Availability_WithoutArguments_UsesActivePresetDefaults()
     {
-        var (app, _, _) = TestHost.Create();
+        var paygClient = new FakePaygDataZoneClient();
+        var (app, _, _) = TestHost.Create(paygClient);
 
         var result = app.Run("availability");
 
@@ -19,6 +20,8 @@ public class AvailabilityCommandTests
         Assert.Contains("gpt-5-mini", result.Output);
         Assert.Contains("gpt-4.1", result.Output);
         Assert.Contains("640", result.Output);
+        Assert.Equal("az-europe", paygClient.LastTab);
+        Assert.Contains("PAYG geography tab: az-europe", result.Output);
     }
 
     [Fact]
@@ -37,12 +40,14 @@ public class AvailabilityCommandTests
     [Fact]
     public void Availability_WithRefresh_RequestsFreshData()
     {
-        var (app, _, client) = TestHost.Create();
+        var paygClient = new FakePaygDataZoneClient();
+        var (app, _, client) = TestHost.Create(paygClient);
 
         var result = app.Run("availability", "--refresh");
 
         Assert.Equal(0, result.ExitCode);
         Assert.True(client.LastRefresh);
+        Assert.True(paygClient.LastRefresh);
     }
 
     [Fact]
@@ -85,15 +90,45 @@ public class AvailabilityCommandTests
     [Fact]
     public void Availability_WithNamedPreset_UsesItsRegionsAndModels()
     {
-        var (app, store, _) = TestHost.Create();
-        store.Config.Presets["eu"] = new Preset { Regions = ["francecentral"], Models = ["gpt-5-mini"] };
+        var paygClient = new FakePaygDataZoneClient();
+        var (app, store, _) = TestHost.Create(paygClient);
+        store.Config.Presets["us"] = new Preset { Regions = ["eastus"], Models = ["gpt-5-mini"], Tab = "az-americas" };
 
-        var result = app.Run("availability", "--preset", "eu");
+        var result = app.Run("availability", "--preset", "us");
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("francecentral", result.Output);
-        Assert.Contains("90", result.Output);
+        Assert.Contains("eastus", result.Output);
         Assert.DoesNotContain("swedencentral", result.Output);
+        Assert.Equal("az-americas", paygClient.LastTab);
+    }
+
+    [Fact]
+    public void Availability_WithExplicitTab_OverridesPresetTab()
+    {
+        var paygClient = new FakePaygDataZoneClient();
+        var (app, store, _) = TestHost.Create(paygClient);
+        store.Config.Presets["apac"] = new Preset { Regions = ["japaneast"], Models = ["gpt-4.1"], Tab = "az-apac" };
+
+        var result = app.Run("availability", "--preset", "apac", "--tab", "AZ-MEA");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("az-mea", paygClient.LastTab);
+        Assert.Contains("PAYG geography tab: az-mea", result.Output);
+    }
+
+    [Fact]
+    public void Availability_WithUnknownTab_FailsBeforeCallingApis()
+    {
+        var paygClient = new FakePaygDataZoneClient();
+        var (app, _, client) = TestHost.Create(paygClient);
+
+        var result = app.Run("availability", "--tab", "az-atlantis");
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("az-atlantis", result.Output);
+        Assert.Contains("az-americas, az-europe, az-apac, az-mea", result.Output);
+        Assert.Null(client.LastEndpoint);
+        Assert.Equal(0, paygClient.CallCount);
     }
 
     [Fact]
@@ -115,14 +150,63 @@ public class AvailabilityCommandTests
         var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
 
         Assert.Contains("Data Zone", result.Output);
+        Assert.Contains("PAYG Data Zone", result.Output);
         Assert.DoesNotContain("Regional", result.Output);
         Assert.DoesNotContain("Global", result.Output);
     }
 
     [Fact]
+    public void Availability_WhenPaygDataZoneIsDocumented_ShowsYes()
+    {
+        var paygClient = new FakePaygDataZoneClient();
+        var (app, _, _) = TestHost.Create(paygClient);
+
+        var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(2, CountOccurrences(result.Output, "yes"));
+        Assert.Equal(1, paygClient.CallCount);
+    }
+
+    [Fact]
+    public void Availability_WhenPaygDataZoneIsNotDocumented_ShowsNo()
+    {
+        var paygClient = new FakePaygDataZoneClient
+        {
+            Snapshot = new()
+            {
+                Models = [FakePaygDataZoneClient.Model("gpt-4.1", "2025-04-14", "francecentral")],
+            },
+        };
+        var (app, _, _) = TestHost.Create(paygClient);
+
+        var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(1, CountOccurrences(result.Output, "yes"));
+        Assert.Equal(1, CountOccurrences(result.Output, "no"));
+    }
+
+    [Fact]
+    public void Availability_WhenPaygSourceFails_ShowsUnknownAndKeepsPtuResult()
+    {
+        var paygClient = new FakePaygDataZoneClient { ThrowOnGet = new HttpRequestException("docs unavailable") };
+        var (app, _, _) = TestHost.Create(paygClient);
+
+        var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Warning", result.Output);
+        Assert.Contains("docs unavailable", result.Output);
+        Assert.Contains("unknown", result.Output);
+        Assert.Contains("640", result.Output);
+    }
+
+    [Fact]
     public void Availability_WithRegionalType_ShowsRegionalData()
     {
-        var (app, _, _) = TestHost.Create();
+        var paygClient = new FakePaygDataZoneClient();
+        var (app, _, _) = TestHost.Create(paygClient);
 
         var result = app.Run("availability", "-r", "francecentral", "-m", "gpt-4.1", "-t", "regional");
 
@@ -130,6 +214,7 @@ public class AvailabilityCommandTests
         Assert.Contains("Regional", result.Output);
         Assert.Contains("220", result.Output);
         Assert.DoesNotContain("Data Zone", result.Output);
+        Assert.Equal(0, paygClient.CallCount);
     }
 
     [Fact]
@@ -220,7 +305,8 @@ public class AvailabilityCommandTests
     }
 
     [Fact]
-    public void Availability_WhenPresetHasNoModels_FailsWithExitCode1()    {
+    public void Availability_WhenPresetHasNoModels_FailsWithExitCode1()
+    {
         var (app, store, _) = TestHost.Create();
         store.Config.Presets["empty"] = new Preset { Regions = ["swedencentral"], Models = [] };
 

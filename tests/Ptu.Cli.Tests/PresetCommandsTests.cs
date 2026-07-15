@@ -1,3 +1,4 @@
+using Ptu.Cli.Availability;
 using Ptu.Cli.Configuration;
 
 namespace Ptu.Cli.Tests;
@@ -15,6 +16,7 @@ public class PresetCommandsTests
         Assert.Contains("* default", result.Output);
         Assert.Contains("swedencentral", result.Output);
         Assert.Contains("gpt-5.4", result.Output);
+        Assert.Contains("az-europe", result.Output);
     }
 
     [Fact]
@@ -29,6 +31,7 @@ public class PresetCommandsTests
         Assert.Contains("(active)", result.Output);
         Assert.Contains("swedencentral, francecentral", result.Output);
         Assert.Contains("gpt-5.4, gpt-5.4-mini, gpt-5-mini, gpt-4.1", result.Output);
+        Assert.Contains("Learn tab: az-europe", result.Output);
     }
 
     [Fact]
@@ -47,12 +50,13 @@ public class PresetCommandsTests
     {
         var (app, store, _) = TestHost.Create();
 
-        var result = app.Run("preset", "set", "eu", "--regions", "francecentral", "--models", "gpt-4.1");
+        var result = app.Run("preset", "set", "us", "--regions", "eastus", "--models", "gpt-4.1", "--tab", "az-americas");
 
         Assert.Equal(0, result.ExitCode);
-        var preset = store.Config.Presets["eu"];
-        Assert.Equal(["francecentral"], preset.Regions);
+        var preset = store.Config.Presets["us"];
+        Assert.Equal(["eastus"], preset.Regions);
         Assert.Equal(["gpt-4.1"], preset.Models);
+        Assert.Equal("az-americas", preset.Tab);
     }
 
     [Fact]
@@ -64,24 +68,49 @@ public class PresetCommandsTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal(PtuDefaults.Models, store.Config.Presets["eu"].Models);
+        Assert.Equal(PaygDataZoneTabs.Default, store.Config.Presets["eu"].Tab);
     }
 
     [Fact]
     public void PresetSet_WithExistingName_UpdatesOnlyProvidedValues()
     {
         var (app, store, _) = TestHost.Create();
-        store.Config.Presets["eu"] = new Preset { Regions = ["francecentral"], Models = ["gpt-4.1"] };
+        store.Config.Presets["eu"] = new Preset { Regions = ["francecentral"], Models = ["gpt-4.1"], Tab = "az-europe" };
 
-        var result = app.Run("preset", "set", "eu", "--models", "gpt-5-mini,gpt-5.4");
+        var result = app.Run("preset", "set", "eu", "--models", "gpt-5-mini,gpt-5.4", "--tab", "AZ-APAC");
 
         Assert.Equal(0, result.ExitCode);
         var preset = store.Config.Presets["eu"];
         Assert.Equal(["francecentral"], preset.Regions);
         Assert.Equal(["gpt-5-mini", "gpt-5.4"], preset.Models);
+        Assert.Equal("az-apac", preset.Tab);
     }
 
     [Fact]
-    public void PresetSet_WithoutRegionsOrModels_FailsWithExitCode1()
+    public void PresetSet_WithOnlyTab_UpdatesTab()
+    {
+        var (app, store, _) = TestHost.Create();
+
+        var result = app.Run("preset", "set", "default", "--tab", "az-mea");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("az-mea", store.Config.Presets["default"].Tab);
+    }
+
+    [Fact]
+    public void PresetSet_WithUnknownTab_FailsWithoutSaving()
+    {
+        var (app, store, _) = TestHost.Create();
+
+        var result = app.Run("preset", "set", "default", "--tab", "europe");
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("az-americas, az-europe, az-apac, az-mea", result.Output);
+        Assert.Equal(0, store.SaveCount);
+    }
+
+    [Fact]
+    public void PresetSet_WithoutValues_FailsWithExitCode1()
     {
         var (app, store, _) = TestHost.Create();
 
@@ -96,12 +125,13 @@ public class PresetCommandsTests
     public void PresetUse_SwitchesActivePreset()
     {
         var (app, store, _) = TestHost.Create();
-        store.Config.Presets["eu"] = new Preset { Regions = ["francecentral"], Models = ["gpt-4.1"] };
+        store.Config.Presets["eu"] = new Preset { Regions = ["francecentral"], Models = ["gpt-4.1"], Tab = "az-apac" };
 
         var result = app.Run("preset", "use", "eu");
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("eu", store.Config.DefaultPreset);
+        Assert.Contains("Learn tab: az-apac", result.Output);
     }
 
     [Fact]
@@ -156,7 +186,7 @@ public class PresetCommandsTests
     public void PresetReset_RestoresFactoryValuesAndActivatesDefault()
     {
         var (app, store, _) = TestHost.Create();
-        store.Config.Presets["default"] = new Preset { Regions = ["eastus"], Models = ["o9"] };
+        store.Config.Presets["default"] = new Preset { Regions = ["eastus"], Models = ["o9"], Tab = "az-americas" };
         store.Config.Presets["eu"] = new Preset { Regions = ["francecentral"], Models = ["gpt-4.1"] };
         store.Config.DefaultPreset = "eu";
 
@@ -166,6 +196,8 @@ public class PresetCommandsTests
         Assert.Equal(PtuDefaults.DefaultPresetName, store.Config.DefaultPreset);
         Assert.Equal(PtuDefaults.Regions, store.Config.Presets["default"].Regions);
         Assert.Equal(PtuDefaults.Models, store.Config.Presets["default"].Models);
+        Assert.Equal(PaygDataZoneTabs.Default, store.Config.Presets["default"].Tab);
+        Assert.Contains("Learn tab: az-europe", result.Output);
         Assert.True(store.Config.Presets.ContainsKey("eu"));
     }
 

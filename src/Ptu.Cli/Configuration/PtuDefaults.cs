@@ -1,6 +1,8 @@
+using Ptu.Cli.Availability;
+
 namespace Ptu.Cli.Configuration;
 
-/// <summary>Factory defaults for regions, models, and the built-in preset.</summary>
+/// <summary>Factory defaults for regions, models, PAYG geography, and the built-in preset.</summary>
 public static class PtuDefaults
 {
     public const string DefaultPresetName = "default";
@@ -13,6 +15,7 @@ public static class PtuDefaults
     {
         Regions = [.. Regions],
         Models = [.. Models],
+        Tab = PaygDataZoneTabs.Default,
     };
 
     public static PresetConfig CreateConfig() => new()

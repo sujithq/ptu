@@ -8,7 +8,11 @@ using Spectre.Console.Cli;
 
 namespace Ptu.Cli.Commands;
 
-public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store, IAvailabilityClient client)
+public sealed class AvailabilityCommand(
+    IAnsiConsole console,
+    IPresetStore store,
+    IAvailabilityClient client,
+    IPaygDataZoneClient paygClient)
     : AsyncCommand<AvailabilityCommand.Settings>
 {
     public sealed class Settings : CommandSettings
@@ -22,15 +26,19 @@ public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store
         public string[] Models { get; init; } = [];
 
         [CommandOption("-p|--preset <NAME>")]
-        [Description("Preset supplying default regions and models. Defaults to the active preset.")]
+        [Description("Preset supplying default regions, models, and Learn tab. Defaults to the active preset.")]
         public string? Preset { get; init; }
+
+        [CommandOption("--tab <TAB>")]
+        [Description("Microsoft Learn PAYG geography: az-americas, az-europe, az-apac, or az-mea. Overrides the preset.")]
+        public string? Tab { get; init; }
 
         [CommandOption("-t|--type <TYPE>")]
         [Description("PTU type(s) to show: datazone, regional, or global. Defaults to datazone.")]
         public string[] Types { get; init; } = [];
 
         [CommandOption("--refresh")]
-        [Description("Bypass caches and retrieve fresh availability data.")]
+        [Description("Bypass caches and retrieve fresh PTU and PAYG data.")]
         public bool Refresh { get; init; }
     }
 
@@ -75,6 +83,12 @@ public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store
         if (models.Count == 0)
         {
             console.MarkupLineInterpolated($"[red]Error:[/] No models specified. Pass --model or add models to the '{presetName}' preset.");
+            return 1;
+        }
+
+        if (!PaygDataZoneTabs.TryNormalize(settings.Tab ?? preset.Tab, out var tab))
+        {
+            console.MarkupLineInterpolated($"[red]Error:[/] Unknown Microsoft Learn region tab '{settings.Tab ?? preset.Tab}'. Valid values: {string.Join(", ", PaygDataZoneTabs.All)}.");
             return 1;
         }
 
@@ -129,7 +143,24 @@ public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store
             return 2;
         }
 
-        console.Write(BuildTable(snapshot, regions, models, types));
+        PaygDataZoneSnapshot? paygSnapshot = null;
+        if (types.Contains(PtuType.DataZone))
+        {
+            try
+            {
+                paygSnapshot = await paygClient.GetAsync(tab, settings.Refresh, cancellationToken);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+            {
+                console.MarkupLineInterpolated($"[yellow]Warning:[/] PAYG Data Zone availability could not be retrieved from Microsoft Learn: {ex.Message}");
+            }
+        }
+
+        console.Write(BuildTable(snapshot, paygSnapshot, regions, models, types));
+        if (types.Contains(PtuType.DataZone))
+        {
+            console.MarkupLineInterpolated($"[grey]PAYG geography tab: {tab}[/]");
+        }
 
         if (snapshot.GeneratedAt is { } generatedAt)
         {
@@ -169,7 +200,12 @@ public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store
         return endpoint;
     }
 
-    private static Table BuildTable(AvailabilitySnapshot snapshot, List<string> regions, List<string> models, List<PtuType> types)
+    private static Table BuildTable(
+        AvailabilitySnapshot snapshot,
+        PaygDataZoneSnapshot? paygSnapshot,
+        List<string> regions,
+        List<string> models,
+        List<PtuType> types)
     {
         var table = new Table().Border(TableBorder.Rounded);
         table.AddColumn("Model");
@@ -178,6 +214,10 @@ public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store
         {
             table.AddColumn(new TableColumn($"{PtuTypes.DisplayName(type)} PTU").Centered());
             table.AddColumn(new TableColumn($"{PtuTypes.DisplayName(type)} capacity").RightAligned());
+            if (type == PtuType.DataZone)
+            {
+                table.AddColumn(new TableColumn("PAYG Data Zone").Centered());
+            }
         }
 
         foreach (var model in models)
@@ -204,6 +244,13 @@ public sealed class AvailabilityCommand(IAnsiConsole console, IPresetStore store
                         var offer = modelData.Offers[type];
                         cells.Add(offer.Available ? "[green]yes[/]" : "[red]no[/]");
                         cells.Add(offer.Capacity?.ToString(CultureInfo.InvariantCulture) ?? "-");
+                    }
+
+                    if (type == PtuType.DataZone)
+                    {
+                        cells.Add(paygSnapshot is null
+                            ? "[yellow]unknown[/]"
+                            : paygSnapshot.IsAvailable(model, region) ? "[green]yes[/]" : "[red]no[/]");
                     }
                 }
 

@@ -42,6 +42,7 @@ public sealed class PresetResetCommand(IAnsiConsole console, IPresetStore store)
 
         store.Save(config);
         console.MarkupLineInterpolated($"[green]Restored the '{PtuDefaults.DefaultPresetName}' preset to factory values and made it active.[/]");
+        console.MarkupLineInterpolated($"Learn tab: {config.Presets[PtuDefaults.DefaultPresetName].Tab}");
         if (settings.All)
         {
             console.MarkupLine("[green]Removed all other presets.[/]");

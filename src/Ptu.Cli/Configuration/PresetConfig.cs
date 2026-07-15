@@ -1,11 +1,15 @@
+using Ptu.Cli.Availability;
+
 namespace Ptu.Cli.Configuration;
 
-/// <summary>A named set of default regions and models.</summary>
+/// <summary>A named set of default regions, models, and Microsoft Learn geography.</summary>
 public sealed class Preset
 {
     public List<string> Regions { get; set; } = [];
 
     public List<string> Models { get; set; } = [];
+
+    public string Tab { get; set; } = PaygDataZoneTabs.Default;
 }
 
 /// <summary>Root of the persisted CLI configuration.</summary>

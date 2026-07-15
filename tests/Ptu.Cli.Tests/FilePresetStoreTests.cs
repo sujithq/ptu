@@ -1,3 +1,4 @@
+using Ptu.Cli.Availability;
 using Ptu.Cli.Configuration;
 
 namespace Ptu.Cli.Tests;
@@ -30,6 +31,7 @@ public sealed class FilePresetStoreTests : IDisposable
         Assert.Equal(PtuDefaults.DefaultPresetName, config.DefaultPreset);
         Assert.Equal(PtuDefaults.Regions, config.Presets[PtuDefaults.DefaultPresetName].Regions);
         Assert.Equal(PtuDefaults.Models, config.Presets[PtuDefaults.DefaultPresetName].Models);
+        Assert.Equal(PaygDataZoneTabs.Default, config.Presets[PtuDefaults.DefaultPresetName].Tab);
     }
 
     [Fact]
@@ -38,17 +40,39 @@ public sealed class FilePresetStoreTests : IDisposable
         var store = new FilePresetStore(_path);
         var config = PtuDefaults.CreateConfig();
         config.ApiEndpoint = "https://example.test/api";
-        config.Presets["eu"] = new Preset { Regions = ["francecentral"], Models = ["gpt-4.1"] };
-        config.DefaultPreset = "eu";
+        config.Presets["us"] = new Preset { Regions = ["eastus"], Models = ["gpt-4.1"], Tab = "az-americas" };
+        config.DefaultPreset = "us";
 
         store.Save(config);
         var loaded = new FilePresetStore(_path).Load();
 
         Assert.Equal("https://example.test/api", loaded.ApiEndpoint);
-        Assert.Equal("eu", loaded.DefaultPreset);
-        Assert.Equal(["francecentral"], loaded.Presets["eu"].Regions);
-        Assert.Equal(["gpt-4.1"], loaded.Presets["eu"].Models);
+        Assert.Equal("us", loaded.DefaultPreset);
+        Assert.Equal(["eastus"], loaded.Presets["us"].Regions);
+        Assert.Equal(["gpt-4.1"], loaded.Presets["us"].Models);
+        Assert.Equal("az-americas", loaded.Presets["us"].Tab);
         Assert.True(loaded.Presets.ContainsKey(PtuDefaults.DefaultPresetName));
+    }
+
+    [Fact]
+    public void Load_LegacyPresetWithoutTab_DefaultsToEurope()
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(_path, """
+                        {
+                            "defaultPreset": "legacy",
+                            "presets": {
+                                "legacy": {
+                                    "regions": ["francecentral"],
+                                    "models": ["gpt-4.1"]
+                                }
+                            }
+                        }
+                        """);
+
+        var loaded = new FilePresetStore(_path).Load();
+
+        Assert.Equal(PaygDataZoneTabs.Default, loaded.Presets["legacy"].Tab);
     }
 
     [Fact]
