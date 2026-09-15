@@ -52,12 +52,25 @@ For a local build: `dotnet pack src/Ptu.Cli -c Release` then `dotnet tool instal
 
 `ptu availability` shows provisioned-throughput availability grouped by model (one group per model, one row per region). On the very first run it asks for the availability API endpoint and stores it in the config file; the endpoint returns the full dataset, so filtering happens client-side. Data Zone PTU and PAYG Data Zone Standard are shown by default; `--type` adds `regional`/`global`. Pass `--refresh` to bypass caches for both data sources and request fresh snapshots.
 
+PTU status is shown separately from the reported capacity:
+
+| Status | Meaning |
+|---|---|
+| `yes` | The API reports support for this deployment type and positive capacity. |
+| `no capacity` | The deployment type is supported, but its reported capacity is zero. |
+| `not supported` | The API reports that this model/region does not support the deployment type. |
+| `unknown` | Support or capacity information is missing or unusable. |
+| `not tracked` | The API did not return the requested model/region. |
+
+Regional, Data Zone, and Global are separate deployment types; support and capacity in one do not imply availability in another.
+
 The PAYG column is retrieved on each run from Microsoft's public [Foundry model region availability](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=standard&tabs=az-europe#data-zone-standard) page. The Learn geography defaults to Europe (`az-europe`) and can be selected with `--tab az-americas`, `--tab az-europe`, `--tab az-apac`, or `--tab az-mea`; an explicit flag overrides the preset. Because CLI model names don't select a version, `yes` means at least one documented Azure OpenAI model version supports PAYG Data Zone Standard in that region. If the public page cannot be retrieved or parsed, PTU results still render and PAYG values are shown as `unknown`.
 
 ```pwsh
 ptu availability                                        # active preset (factory: swedencentral,francecentral × gpt-5.4,gpt-5.4-mini,gpt-5-mini,gpt-4.1)
 ptu availability --refresh                              # bypass caches and request fresh data
 ptu availability -r swedencentral,francecentral -m gpt-4.1
+ptu availability -r uksouth -m gpt-5.6-luna -t regional
 ptu availability --tab az-americas -r eastus -m gpt-4.1
 ptu availability --preset eu -t datazone,global
 ```

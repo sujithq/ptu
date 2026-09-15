@@ -75,9 +75,9 @@ public sealed class HttpAvailabilityClient(HttpClient http) : IAvailabilityClien
                         Name = m.Name!,
                         Offers = new Dictionary<PtuType, PtuOffer>
                         {
-                            [PtuType.DataZone] = new(m.DataZoneProvisionedAvailable ?? false, m.DataZoneProvisionedCapacity),
-                            [PtuType.Regional] = new(m.ProvisionedAvailable ?? false, m.ProvisionedCapacity),
-                            [PtuType.Global] = new(m.GlobalProvisionedAvailable ?? false, m.GlobalProvisionedCapacity),
+                            [PtuType.DataZone] = new(m.DataZoneProvisionedAvailable, m.DataZoneProvisionedCapacity),
+                            [PtuType.Regional] = new(m.ProvisionedAvailable, m.ProvisionedCapacity),
+                            [PtuType.Global] = new(m.GlobalProvisionedAvailable, m.GlobalProvisionedCapacity),
                         },
                     })],
             })],

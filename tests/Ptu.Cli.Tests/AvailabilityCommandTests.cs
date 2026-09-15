@@ -1,3 +1,7 @@
+using System.Globalization;
+using System.Net;
+using System.Net.Http.Json;
+using Ptu.Cli.Availability;
 using Ptu.Cli.Configuration;
 using Ptu.Cli.Tests.Fakes;
 
@@ -215,6 +219,82 @@ public class AvailabilityCommandTests
         Assert.Contains("220", result.Output);
         Assert.DoesNotContain("Data Zone", result.Output);
         Assert.Equal(0, paygClient.CallCount);
+    }
+
+    [Theory]
+    [InlineData(PtuType.Regional, false, null, "not supported")]
+    [InlineData(PtuType.Regional, true, 0, "no capacity")]
+    [InlineData(PtuType.Regional, true, 1, "yes")]
+    [InlineData(PtuType.Regional, true, 1750, "yes")]
+    [InlineData(PtuType.Regional, true, null, "unknown")]
+    [InlineData(PtuType.Regional, null, null, "unknown")]
+    [InlineData(PtuType.DataZone, false, null, "not supported")]
+    [InlineData(PtuType.DataZone, true, 0, "no capacity")]
+    [InlineData(PtuType.DataZone, true, 1, "yes")]
+    [InlineData(PtuType.DataZone, true, 1750, "yes")]
+    [InlineData(PtuType.DataZone, true, null, "unknown")]
+    [InlineData(PtuType.DataZone, null, null, "unknown")]
+    [InlineData(PtuType.Global, false, null, "not supported")]
+    [InlineData(PtuType.Global, true, 0, "no capacity")]
+    [InlineData(PtuType.Global, true, 1, "yes")]
+    [InlineData(PtuType.Global, true, 1750, "yes")]
+    [InlineData(PtuType.Global, true, null, "unknown")]
+    [InlineData(PtuType.Global, null, null, "unknown")]
+    public async Task Availability_WithPtuSupportAndCapacity_ShowsDistinctStatus(
+        PtuType type, bool? supported, int? capacity, string expectedStatus)
+    {
+        var paygClient = new FakePaygDataZoneClient { Snapshot = new() { Models = [] } };
+        var (app, _, client) = TestHost.Create(paygClient);
+        var prefix = type switch
+        {
+            PtuType.Regional => "provisioned",
+            PtuType.DataZone => "dataZoneProvisioned",
+            _ => "globalProvisioned",
+        };
+        using var content = JsonContent.Create(new
+        {
+            status = "succeeded",
+            payload = new
+            {
+                regions = new[]
+                {
+                    new
+                    {
+                        region = "uksouth",
+                        models = new[]
+                        {
+                            new Dictionary<string, object?>
+                            {
+                                ["name"] = "gpt-5.6-luna",
+                                [$"{prefix}Available"] = supported,
+                                [$"{prefix}Capacity"] = capacity,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        using var http = new HttpClient(new AvailabilityResponseHandler(content));
+        client.Snapshot = await new HttpAvailabilityClient(http).GetAsync(TestHost.TestEndpoint, null, false, CancellationToken.None);
+
+        var result = app.Run("availability", "-r", "uksouth", "-m", "gpt-5.6-luna", "-t", type.ToString().ToLowerInvariant());
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("uksouth", result.Output);
+        Assert.Contains("gpt-5.6-luna", result.Output);
+        Assert.Contains(expectedStatus, result.Output);
+        Assert.DoesNotContain("not tracked", result.Output);
+        Assert.Equal(expectedStatus == "yes" ? 1 : 0, CountOccurrences(result.Output, "yes"));
+        if (capacity is { } expectedCapacity)
+        {
+            Assert.Matches($@"\s{expectedCapacity.ToString(CultureInfo.InvariantCulture)}\s", result.Output);
+        }
+    }
+
+    private sealed class AvailabilityResponseHandler(HttpContent content) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
     }
 
     [Fact]

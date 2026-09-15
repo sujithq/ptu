@@ -242,7 +242,13 @@ public sealed class AvailabilityCommand(
                     else
                     {
                         var offer = modelData.Offers[type];
-                        cells.Add(offer.Available ? "[green]yes[/]" : "[red]no[/]");
+                        cells.Add((offer.Available, offer.Capacity) switch
+                        {
+                            (false, _) => "[grey]not supported[/]",
+                            (true, 0) => "[yellow]no capacity[/]",
+                            (true, > 0) => "[green]yes[/]",
+                            _ => "[yellow]unknown[/]",
+                        });
                         cells.Add(offer.Capacity?.ToString(CultureInfo.InvariantCulture) ?? "-");
                     }
 

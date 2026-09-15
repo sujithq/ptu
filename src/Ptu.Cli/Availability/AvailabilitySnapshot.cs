@@ -1,7 +1,7 @@
 namespace Ptu.Cli.Availability;
 
-/// <summary>Availability and capacity of one PTU type for a model in a region.</summary>
-public readonly record struct PtuOffer(bool Available, int? Capacity);
+/// <summary>Support flag and reported capacity of one PTU type for a model in a region.</summary>
+public readonly record struct PtuOffer(bool? Available, int? Capacity);
 
 public sealed class ModelAvailability
 {
