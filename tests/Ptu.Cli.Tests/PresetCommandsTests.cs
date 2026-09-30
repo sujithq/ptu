@@ -1,5 +1,6 @@
 using Ptu.Cli.Availability;
 using Ptu.Cli.Configuration;
+using Ptu.Cli.Tests.Fakes;
 
 namespace Ptu.Cli.Tests;
 
@@ -17,6 +18,7 @@ public class PresetCommandsTests
         Assert.Contains("swedencentral", result.Output);
         Assert.Contains("gpt-5.4", result.Output);
         Assert.Contains("az-europe", result.Output);
+        Assert.Contains("datazone", result.Output);
     }
 
     [Fact]
@@ -31,6 +33,7 @@ public class PresetCommandsTests
         Assert.Contains("(active)", result.Output);
         Assert.Contains("swedencentral, francecentral", result.Output);
         Assert.Contains("gpt-5.4, gpt-5.4-mini, gpt-5-mini, gpt-4.1", result.Output);
+        Assert.Contains("Types: datazone", result.Output);
         Assert.Contains("Learn tab: az-europe", result.Output);
     }
 
@@ -50,12 +53,13 @@ public class PresetCommandsTests
     {
         var (app, store, _) = TestHost.Create();
 
-        var result = app.Run("preset", "set", "us", "--regions", "eastus", "--models", "gpt-4.1", "--tab", "az-americas");
+        var result = app.Run("preset", "set", "us", "--regions", "eastus", "--models", "gpt-4.1", "--types", "global,regional", "--tab", "az-americas");
 
         Assert.Equal(0, result.ExitCode);
         var preset = store.Config.Presets["us"];
         Assert.Equal(["eastus"], preset.Regions);
         Assert.Equal(["gpt-4.1"], preset.Models);
+        Assert.Equal(["global", "regional"], preset.Types);
         Assert.Equal("az-americas", preset.Tab);
     }
 
@@ -68,6 +72,7 @@ public class PresetCommandsTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal(PtuDefaults.Models, store.Config.Presets["eu"].Models);
+        Assert.Equal(["datazone"], store.Config.Presets["eu"].Types);
         Assert.Equal(PaygDataZoneTabs.Default, store.Config.Presets["eu"].Tab);
     }
 
@@ -77,12 +82,13 @@ public class PresetCommandsTests
         var (app, store, _) = TestHost.Create();
         store.Config.Presets["eu"] = new Preset { Regions = ["francecentral"], Models = ["gpt-4.1"], Tab = "az-europe" };
 
-        var result = app.Run("preset", "set", "eu", "--models", "gpt-5-mini,gpt-5.4", "--tab", "AZ-APAC");
+        var result = app.Run("preset", "set", "eu", "--models", "gpt-5-mini,gpt-5.4", "--types", "GLOBAL,DataZone,global", "--tab", "AZ-APAC");
 
         Assert.Equal(0, result.ExitCode);
         var preset = store.Config.Presets["eu"];
         Assert.Equal(["francecentral"], preset.Regions);
         Assert.Equal(["gpt-5-mini", "gpt-5.4"], preset.Models);
+        Assert.Equal(["global", "datazone"], preset.Types);
         Assert.Equal("az-apac", preset.Tab);
     }
 
@@ -95,6 +101,37 @@ public class PresetCommandsTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("az-mea", store.Config.Presets["default"].Tab);
+    }
+
+    [Fact]
+    public void PresetSet_WithUnknownType_FailsWithoutSaving()
+    {
+        var (app, store, _) = TestHost.Create();
+
+        var result = app.Run("preset", "set", "default", "--types", "global,warp");
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("warp", result.Output);
+        Assert.Equal(0, store.SaveCount);
+    }
+
+    [Fact]
+    public void Availability_UsesPresetTypesAndExplicitTypesOverrideThem()
+    {
+        var (presetApp, store, _) = TestHost.Create();
+        store.Config.Presets["default"].Types = ["global", "regional"];
+
+        var presetResult = presetApp.Run("availability", "-r", "francecentral", "-m", "gpt-4.1");
+        var (overrideApp, _, _) = TestHost.Create();
+        var overrideResult = overrideApp.Run("availability", "-r", "francecentral", "-m", "gpt-4.1", "-t", "datazone");
+
+        Assert.Equal(0, presetResult.ExitCode);
+        Assert.Contains("PAYG Global Standard", presetResult.Output);
+        Assert.Contains("PAYG Regional Standard", presetResult.Output);
+        Assert.DoesNotContain("PAYG Data Zone Standard", presetResult.Output);
+        Assert.Equal(0, overrideResult.ExitCode);
+        Assert.Contains("PAYG Data Zone Standard", overrideResult.Output);
+        Assert.DoesNotContain("PAYG Global Standard", overrideResult.Output);
     }
 
     [Fact]

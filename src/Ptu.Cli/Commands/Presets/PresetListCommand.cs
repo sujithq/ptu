@@ -22,6 +22,7 @@ public sealed class PresetListCommand(IAnsiConsole console, IPresetStore store) 
         var table = new Table().Border(TableBorder.Rounded);
         table.AddColumn("Preset");
         table.AddColumn("Learn tab");
+        table.AddColumn("Types");
         table.AddColumn("Regions");
         table.AddColumn("Models");
         table.Caption("* = active preset");
@@ -32,6 +33,7 @@ public sealed class PresetListCommand(IAnsiConsole console, IPresetStore store) 
             table.AddRow(
                 Markup.Escape(isActive ? $"* {name}" : name),
                 Markup.Escape(preset.Tab),
+                Markup.Escape(string.Join(", ", preset.Types)),
                 Markup.Escape(string.Join(", ", preset.Regions)),
                 Markup.Escape(string.Join(", ", preset.Models)));
         }

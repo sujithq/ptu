@@ -50,7 +50,9 @@ For a local build: `dotnet pack src/Ptu.Cli -c Release` then `dotnet tool instal
 
 ## PTU availability
 
-`ptu availability` shows provisioned-throughput availability grouped by model (one group per model, one row per region). On the very first run it asks for the availability API endpoint and stores it in the config file; the endpoint returns the full dataset, so filtering happens client-side. Data Zone PTU and PAYG Data Zone Standard are shown by default; `--type` adds `regional`/`global`. Pass `--refresh` to bypass caches for both data sources and request fresh snapshots.
+`ptu availability` shows provisioned-throughput (PTU) and pay-as-you-go (PAYG) Standard availability grouped by model (one group per model, one row per region). On the very first run it asks for the availability API endpoint and stores it in the config file; the endpoint returns the full PTU dataset, so filtering happens client-side. Data Zone PTU and PAYG Data Zone Standard are shown by default. `--type regional` or `--type global` adds the matching PTU and PAYG Standard columns; provide a comma-separated list to show multiple deployment types. Pass `--refresh` to bypass caches for both data sources and request fresh snapshots.
+
+If the latest API refresh failed but its response includes the last successful dataset, `ptu` renders that cached data with a warning and its generation timestamp. A failed response without cached regions remains an API failure (exit code `2`).
 
 PTU status is shown separately from the reported capacity:
 
@@ -64,7 +66,7 @@ PTU status is shown separately from the reported capacity:
 
 Regional, Data Zone, and Global are separate deployment types; support and capacity in one do not imply availability in another.
 
-The PAYG column is retrieved on each run from Microsoft's public [Foundry model region availability](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=standard&tabs=az-europe#data-zone-standard) page. The Learn geography defaults to Europe (`az-europe`) and can be selected with `--tab az-americas`, `--tab az-europe`, `--tab az-apac`, or `--tab az-mea`; an explicit flag overrides the preset. Because CLI model names don't select a version, `yes` means at least one documented Azure OpenAI model version supports PAYG Data Zone Standard in that region. If the public page cannot be retrieved or parsed, PTU results still render and PAYG values are shown as `unknown`.
+PAYG Global Standard, Data Zone Standard, and Regional Standard availability is retrieved on each run from Microsoft's public [Foundry model region availability](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=standard&tabs=az-europe#global-standard) page. The Learn geography defaults to Europe (`az-europe`) and can be selected with `--tab az-americas`, `--tab az-europe`, `--tab az-apac`, or `--tab az-mea`; an explicit flag overrides the preset. Because CLI model names don't select a version, `yes` means at least one documented Azure OpenAI model version supports that PAYG Standard deployment in that region. If the public page cannot be retrieved or parsed, PTU results still render and PAYG values are shown as `unknown`.
 
 ```pwsh
 ptu availability                                        # active preset (factory: swedencentral,francecentral × gpt-5.4,gpt-5.4-mini,gpt-5-mini,gpt-4.1)
@@ -100,12 +102,12 @@ When the cookie expires the API starts rejecting requests again; repeat `ptu aut
 
 ## Presets
 
-Named region/model/Learn-geography profiles stored in `%APPDATA%/ptu/config.json` (alongside the `apiEndpoint`); one is the active default used by `availability`.
+Named region/model/deployment-type/Learn-geography profiles stored in `%APPDATA%/ptu/config.json` (alongside the `apiEndpoint`); one is the active default used by `availability`. Presets default to the Data Zone type; use `--types datazone,global` to persist a different selection.
 
 ```pwsh
 ptu preset list                                         # * marks the active preset
 ptu preset show [name]
-ptu preset set eu --regions francecentral --models gpt-4.1,gpt-5-mini --tab az-europe
+ptu preset set eu --regions francecentral --models gpt-4.1,gpt-5-mini --types datazone,global --tab az-europe
 ptu preset use eu                                       # switch the active default
 ptu preset remove eu                                    # 'default' is protected
 ptu preset reset [--all]                                # restore factory values (--all drops other presets)

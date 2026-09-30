@@ -31,6 +31,7 @@ public sealed class FilePresetStoreTests : IDisposable
         Assert.Equal(PtuDefaults.DefaultPresetName, config.DefaultPreset);
         Assert.Equal(PtuDefaults.Regions, config.Presets[PtuDefaults.DefaultPresetName].Regions);
         Assert.Equal(PtuDefaults.Models, config.Presets[PtuDefaults.DefaultPresetName].Models);
+        Assert.Equal(["datazone"], config.Presets[PtuDefaults.DefaultPresetName].Types);
         Assert.Equal(PaygDataZoneTabs.Default, config.Presets[PtuDefaults.DefaultPresetName].Tab);
     }
 
@@ -40,7 +41,7 @@ public sealed class FilePresetStoreTests : IDisposable
         var store = new FilePresetStore(_path);
         var config = PtuDefaults.CreateConfig();
         config.ApiEndpoint = "https://example.test/api";
-        config.Presets["us"] = new Preset { Regions = ["eastus"], Models = ["gpt-4.1"], Tab = "az-americas" };
+        config.Presets["us"] = new Preset { Regions = ["eastus"], Models = ["gpt-4.1"], Types = ["global", "regional"], Tab = "az-americas" };
         config.DefaultPreset = "us";
 
         store.Save(config);
@@ -50,6 +51,7 @@ public sealed class FilePresetStoreTests : IDisposable
         Assert.Equal("us", loaded.DefaultPreset);
         Assert.Equal(["eastus"], loaded.Presets["us"].Regions);
         Assert.Equal(["gpt-4.1"], loaded.Presets["us"].Models);
+        Assert.Equal(["global", "regional"], loaded.Presets["us"].Types);
         Assert.Equal("az-americas", loaded.Presets["us"].Tab);
         Assert.True(loaded.Presets.ContainsKey(PtuDefaults.DefaultPresetName));
     }
@@ -73,6 +75,7 @@ public sealed class FilePresetStoreTests : IDisposable
         var loaded = new FilePresetStore(_path).Load();
 
         Assert.Equal(PaygDataZoneTabs.Default, loaded.Presets["legacy"].Tab);
+        Assert.Equal(["datazone"], loaded.Presets["legacy"].Types);
     }
 
     [Fact]

@@ -154,7 +154,9 @@ public class AvailabilityCommandTests
         var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
 
         Assert.Contains("Data Zone", result.Output);
-        Assert.Contains("PAYG Data Zone", result.Output);
+        Assert.Contains("PAYG Data Zone Standard", result.Output);
+        Assert.DoesNotContain("PAYG Regional Standard", result.Output);
+        Assert.DoesNotContain("PAYG Global Standard", result.Output);
         Assert.DoesNotContain("Regional", result.Output);
         Assert.DoesNotContain("Global", result.Output);
     }
@@ -179,7 +181,10 @@ public class AvailabilityCommandTests
         {
             Snapshot = new()
             {
-                Models = [FakePaygDataZoneClient.Model("gpt-4.1", "2025-04-14", "francecentral")],
+                ModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>
+                {
+                    [PtuType.DataZone] = [FakePaygDataZoneClient.Model("gpt-4.1", "2025-04-14", "francecentral")],
+                },
             },
         };
         var (app, _, _) = TestHost.Create(paygClient);
@@ -218,7 +223,8 @@ public class AvailabilityCommandTests
         Assert.Contains("Regional", result.Output);
         Assert.Contains("220", result.Output);
         Assert.DoesNotContain("Data Zone", result.Output);
-        Assert.Equal(0, paygClient.CallCount);
+        Assert.Contains("PAYG Regional Standard", result.Output);
+        Assert.Equal(1, paygClient.CallCount);
     }
 
     [Theory]
@@ -243,7 +249,13 @@ public class AvailabilityCommandTests
     public async Task Availability_WithPtuSupportAndCapacity_ShowsDistinctStatus(
         PtuType type, bool? supported, int? capacity, string expectedStatus)
     {
-        var paygClient = new FakePaygDataZoneClient { Snapshot = new() { Models = [] } };
+        var paygClient = new FakePaygDataZoneClient
+        {
+            Snapshot = new()
+            {
+                ModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>(),
+            },
+        };
         var (app, _, client) = TestHost.Create(paygClient);
         var prefix = type switch
         {
@@ -298,17 +310,22 @@ public class AvailabilityCommandTests
     }
 
     [Fact]
-    public void Availability_WithMultipleTypes_ShowsAllRequestedColumns()
+    public void Availability_WithMultipleTypes_ShowsPtuAndPaygStandardColumns()
     {
-        var (app, _, _) = TestHost.Create();
+        var paygClient = new FakePaygDataZoneClient();
+        var (app, _, _) = TestHost.Create(paygClient);
 
         var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1", "-t", "datazone,global");
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Data Zone", result.Output);
         Assert.Contains("Global", result.Output);
+        Assert.Contains("PAYG Data Zone Standard", result.Output);
+        Assert.Contains("PAYG Global Standard", result.Output);
+        Assert.DoesNotContain("PAYG Regional Standard", result.Output);
         Assert.Contains("640", result.Output);
         Assert.Contains("870", result.Output);
+        Assert.Equal(1, paygClient.CallCount);
     }
 
     [Fact]
@@ -335,10 +352,59 @@ public class AvailabilityCommandTests
     }
 
     [Fact]
-    public void Availability_WhenApiStatusIsNotSucceeded_ReturnsExitCode2()
+    public void Availability_WhenApiStatusIsNotSucceededWithCachedData_ShowsWarningAndResults()
     {
         var (app, _, client) = TestHost.Create();
         client.Snapshot = FakeAvailabilityClient.CreateSnapshot(status: "failed");
+
+        var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Warning", result.Output);
+        Assert.Contains("failed", result.Output);
+        Assert.Contains("Showing cached data generated at 2026-07-10 06:00:00Z", result.Output);
+        Assert.Contains("640", result.Output);
+        Assert.DoesNotContain("not tracked", result.Output);
+    }
+
+    [Fact]
+    public void Availability_WhenApiStatusIsNotSucceededWithoutCachedData_ReturnsExitCode2()
+    {
+        var (app, _, client) = TestHost.Create();
+        client.Snapshot = new AvailabilitySnapshot
+        {
+            Status = "failed",
+            Regions = [],
+        };
+
+        var result = app.Run("availability");
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("failed", result.Output);
+    }
+
+    [Fact]
+    public void Availability_WhenApiStatusIsUnknownWithData_ReturnsExitCode2()
+    {
+        var (app, _, client) = TestHost.Create();
+        client.Snapshot = FakeAvailabilityClient.CreateSnapshot(status: "unknown");
+
+        var result = app.Run("availability");
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("unknown", result.Output);
+    }
+
+    [Fact]
+    public void Availability_WhenFailedPayloadHasNoTimestamp_ReturnsExitCode2()
+    {
+        var (app, _, client) = TestHost.Create();
+        var cachedSnapshot = FakeAvailabilityClient.CreateSnapshot(status: "failed");
+        client.Snapshot = new AvailabilitySnapshot
+        {
+            Status = cachedSnapshot.Status,
+            Regions = cachedSnapshot.Regions,
+        };
 
         var result = app.Run("availability");
 

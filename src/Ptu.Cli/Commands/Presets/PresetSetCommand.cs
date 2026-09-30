@@ -22,6 +22,10 @@ public sealed class PresetSetCommand(IAnsiConsole console, IPresetStore store) :
         [Description("Model list. Repeatable or comma-separated. When creating a preset without models, factory defaults are used.")]
         public string[] Models { get; init; } = [];
 
+        [CommandOption("-t|--types <TYPES>")]
+        [Description("PTU and PAYG Standard type(s): datazone, regional, or global. Defaults to datazone.")]
+        public string[] Types { get; init; } = [];
+
         [CommandOption("--tab <TAB>")]
         [Description("Microsoft Learn PAYG geography: az-americas, az-europe, az-apac, or az-mea. New presets default to az-europe.")]
         public string? Tab { get; init; }
@@ -31,10 +35,28 @@ public sealed class PresetSetCommand(IAnsiConsole console, IPresetStore store) :
     {
         var regions = CommandInput.Normalize(settings.Regions);
         var models = CommandInput.Normalize(settings.Models);
-        if (regions.Count == 0 && models.Count == 0 && settings.Tab is null)
+        if (regions.Count == 0 && models.Count == 0 && settings.Types.Length == 0 && settings.Tab is null)
         {
-            console.MarkupLineInterpolated($"[red]Error:[/] Nothing to set. Provide --regions, --models, and/or --tab.");
+            console.MarkupLineInterpolated($"[red]Error:[/] Nothing to set. Provide --regions, --models, --types, and/or --tab.");
             return 1;
+        }
+
+        List<PtuType>? types = null;
+        if (settings.Types.Length > 0)
+        {
+            if (!PtuTypes.TryParseMany(settings.Types, out var parsedTypes, out var invalidType))
+            {
+                console.MarkupLineInterpolated($"[red]Error:[/] Unknown PTU/PAYG type '{invalidType}'. Valid values: datazone, regional, global.");
+                return 1;
+            }
+
+            if (parsedTypes.Count == 0)
+            {
+                console.MarkupLine("[red]Error:[/] Provide at least one type: datazone, regional, or global.");
+                return 1;
+            }
+
+            types = parsedTypes;
         }
 
         string? tab = null;
@@ -71,6 +93,11 @@ public sealed class PresetSetCommand(IAnsiConsole console, IPresetStore store) :
             preset.Models = models;
         }
 
+        if (types is not null)
+        {
+            preset.Types = PtuTypes.ToNames(types);
+        }
+
         if (tab is not null)
         {
             preset.Tab = tab;
@@ -81,6 +108,7 @@ public sealed class PresetSetCommand(IAnsiConsole console, IPresetStore store) :
         console.MarkupLineInterpolated($"[green]Saved preset '{settings.Name}'.[/]");
         console.MarkupLineInterpolated($"Regions: {string.Join(", ", preset.Regions)}");
         console.MarkupLineInterpolated($"Models: {string.Join(", ", preset.Models)}");
+        console.MarkupLineInterpolated($"Types: {string.Join(", ", preset.Types)}");
         console.MarkupLineInterpolated($"Learn tab: {preset.Tab}");
         return 0;
     }

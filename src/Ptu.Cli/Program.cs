@@ -69,7 +69,7 @@ public static class Program
         config.SetHelpProvider(new BannerHelpProvider(config.Settings));
 
         config.AddCommand<AvailabilityCommand>("availability")
-            .WithDescription("Show PTU and PAYG availability for regions and models (data zone by default).")
+            .WithDescription("Show PTU and PAYG Standard availability for regions and models (data zone by default).")
             .WithExample("availability")
             .WithExample("availability", "-r", "swedencentral,francecentral", "-m", "gpt-4.1")
             .WithExample("availability", "--tab", "az-americas", "-r", "eastus", "-m", "gpt-4.1")
@@ -104,18 +104,18 @@ public static class Program
 
         config.AddBranch("preset", preset =>
         {
-            preset.SetDescription("Manage region/model/PAYG-geography presets and the active default.");
+            preset.SetDescription("Manage region/model/deployment-type/PAYG-geography presets and the active default.");
 
             preset.AddCommand<PresetListCommand>("list")
                 .WithDescription("List all presets.");
 
             preset.AddCommand<PresetShowCommand>("show")
-                .WithDescription("Show a preset's regions, models, and PAYG geography.")
+                .WithDescription("Show a preset's regions, models, deployment types, and PAYG geography.")
                 .WithExample("preset", "show", "eu");
 
             preset.AddCommand<PresetSetCommand>("set")
-                .WithDescription("Create a preset or update its regions/models/PAYG geography.")
-                .WithExample("preset", "set", "eu", "--regions", "swedencentral,francecentral", "--models", "gpt-4.1", "--tab", "az-europe");
+                .WithDescription("Create a preset or update its regions/models/deployment types/PAYG geography.")
+                .WithExample("preset", "set", "eu", "--regions", "swedencentral,francecentral", "--models", "gpt-4.1", "--types", "datazone,global", "--tab", "az-europe");
 
             preset.AddCommand<PresetUseCommand>("use")
                 .WithDescription("Make a preset the active default.");

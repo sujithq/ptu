@@ -15,6 +15,7 @@ public static class PtuDefaults
     {
         Regions = [.. Regions],
         Models = [.. Models],
+        Types = ["datazone"],
         Tab = PaygDataZoneTabs.Default,
     };
 

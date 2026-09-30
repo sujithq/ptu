@@ -26,13 +26,24 @@ public sealed class FakePaygDataZoneClient : IPaygDataZoneClient
 
     public static PaygDataZoneSnapshot CreateSnapshot() => new()
     {
-        Models =
-        [
-            Model("gpt-5.4", "2026-03-05", "francecentral", "swedencentral"),
-            Model("gpt-5.4-mini", "2026-03-17", "francecentral", "swedencentral"),
-            Model("gpt-5-mini", "2025-08-07", "francecentral", "swedencentral"),
-            Model("gpt-4.1", "2025-04-14", "francecentral", "swedencentral"),
-        ],
+        ModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>
+        {
+            [PtuType.DataZone] =
+            [
+                Model("gpt-5.4", "2026-03-05", "francecentral", "swedencentral"),
+                Model("gpt-5.4-mini", "2026-03-17", "francecentral", "swedencentral"),
+                Model("gpt-5-mini", "2025-08-07", "francecentral", "swedencentral"),
+                Model("gpt-4.1", "2025-04-14", "francecentral", "swedencentral"),
+            ],
+            [PtuType.Global] =
+            [
+                Model("gpt-4.1", "2025-04-14", "francecentral", "swedencentral"),
+            ],
+            [PtuType.Regional] =
+            [
+                Model("gpt-4.1", "2025-04-14", "francecentral"),
+            ],
+        },
     };
 
     public static PaygDataZoneModel Model(string name, string version, params string[] regions) => new()

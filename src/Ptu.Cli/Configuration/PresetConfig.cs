@@ -9,6 +9,8 @@ public sealed class Preset
 
     public List<string> Models { get; set; } = [];
 
+    public List<string> Types { get; set; } = ["datazone"];
+
     public string Tab { get; set; } = PaygDataZoneTabs.Default;
 }
 

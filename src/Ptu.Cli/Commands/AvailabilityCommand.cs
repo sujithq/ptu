@@ -34,7 +34,7 @@ public sealed class AvailabilityCommand(
         public string? Tab { get; init; }
 
         [CommandOption("-t|--type <TYPE>")]
-        [Description("PTU type(s) to show: datazone, regional, or global. Defaults to datazone.")]
+        [Description("PTU and PAYG Standard type(s) to show: datazone, regional, or global. Defaults to datazone.")]
         public string[] Types { get; init; } = [];
 
         [CommandOption("--refresh")]
@@ -92,24 +92,17 @@ public sealed class AvailabilityCommand(
             return 1;
         }
 
-        var types = new List<PtuType>();
-        foreach (var raw in settings.Types.SelectMany(v => v.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+        IEnumerable<string> typesToParse = settings.Types.Length > 0 ? settings.Types : preset.Types;
+        if (!PtuTypes.TryParseMany(typesToParse, out var types, out var invalidType))
         {
-            if (!PtuTypes.TryParse(raw, out var type))
-            {
-                console.MarkupLineInterpolated($"[red]Error:[/] Unknown PTU type '{raw}'. Valid values: datazone, regional, global.");
-                return 1;
-            }
-
-            if (!types.Contains(type))
-            {
-                types.Add(type);
-            }
+            console.MarkupLineInterpolated($"[red]Error:[/] Unknown PTU/PAYG type '{invalidType}'. Valid values: datazone, regional, global.");
+            return 1;
         }
 
         if (types.Count == 0)
         {
-            types.Add(PtuType.DataZone);
+            console.MarkupLine("[red]Error:[/] Select at least one PTU/PAYG type: datazone, regional, or global.");
+            return 1;
         }
 
         var endpoint = ResolveOrPromptEndpoint(console, store, config);
@@ -137,30 +130,35 @@ public sealed class AvailabilityCommand(
             return 2;
         }
 
-        if (!string.Equals(snapshot.Status, "succeeded", StringComparison.OrdinalIgnoreCase))
+        var apiSucceeded = string.Equals(snapshot.Status, "succeeded", StringComparison.OrdinalIgnoreCase);
+        var canUseCachedData = string.Equals(snapshot.Status, "failed", StringComparison.OrdinalIgnoreCase)
+            && snapshot.Regions.Count > 0
+            && snapshot.GeneratedAt.HasValue;
+
+        if (!apiSucceeded && !canUseCachedData)
         {
             console.MarkupLineInterpolated($"[red]Error:[/] The availability API reported status '{snapshot.Status}'.");
             return 2;
         }
 
-        PaygDataZoneSnapshot? paygSnapshot = null;
-        if (types.Contains(PtuType.DataZone))
+        if (canUseCachedData)
         {
-            try
-            {
-                paygSnapshot = await paygClient.GetAsync(tab, settings.Refresh, cancellationToken);
-            }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
-            {
-                console.MarkupLineInterpolated($"[yellow]Warning:[/] PAYG Data Zone availability could not be retrieved from Microsoft Learn: {ex.Message}");
-            }
+            var cachedAt = snapshot.GeneratedAt.GetValueOrDefault().ToString("u", CultureInfo.InvariantCulture);
+            console.MarkupLineInterpolated($"[yellow]Warning:[/] The availability API reported status '{snapshot.Status}'. Showing cached data generated at {cachedAt}.");
+        }
+
+        PaygDataZoneSnapshot? paygSnapshot = null;
+        try
+        {
+            paygSnapshot = await paygClient.GetAsync(tab, settings.Refresh, cancellationToken);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            console.MarkupLineInterpolated($"[yellow]Warning:[/] PAYG Standard availability could not be retrieved from Microsoft Learn: {ex.Message}");
         }
 
         console.Write(BuildTable(snapshot, paygSnapshot, regions, models, types));
-        if (types.Contains(PtuType.DataZone))
-        {
-            console.MarkupLineInterpolated($"[grey]PAYG geography tab: {tab}[/]");
-        }
+        console.MarkupLineInterpolated($"[grey]PAYG geography tab: {tab}[/]");
 
         if (snapshot.GeneratedAt is { } generatedAt)
         {
@@ -214,10 +212,7 @@ public sealed class AvailabilityCommand(
         {
             table.AddColumn(new TableColumn($"{PtuTypes.DisplayName(type)} PTU").Centered());
             table.AddColumn(new TableColumn($"{PtuTypes.DisplayName(type)} capacity").RightAligned());
-            if (type == PtuType.DataZone)
-            {
-                table.AddColumn(new TableColumn("PAYG Data Zone").Centered());
-            }
+            table.AddColumn(new TableColumn($"PAYG {PtuTypes.DisplayName(type)} Standard").Centered());
         }
 
         foreach (var model in models)
@@ -252,12 +247,9 @@ public sealed class AvailabilityCommand(
                         cells.Add(offer.Capacity?.ToString(CultureInfo.InvariantCulture) ?? "-");
                     }
 
-                    if (type == PtuType.DataZone)
-                    {
-                        cells.Add(paygSnapshot is null
-                            ? "[yellow]unknown[/]"
-                            : paygSnapshot.IsAvailable(model, region) ? "[green]yes[/]" : "[red]no[/]");
-                    }
+                    cells.Add(paygSnapshot is null
+                        ? "[yellow]unknown[/]"
+                        : paygSnapshot.IsAvailable(type, model, region) ? "[green]yes[/]" : "[red]no[/]");
                 }
 
                 table.AddRow(cells.ToArray());

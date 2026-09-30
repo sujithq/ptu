@@ -1,6 +1,6 @@
 # ptu
 
-Compare Azure PTU (provisioned throughput) and PAYG model availability per region, straight from your terminal. Data Zone PTU and PAYG by default — Regional and Global PTU on demand — with results grouped by model.
+Compare Azure PTU (provisioned throughput) and PAYG Standard model availability per region, straight from your terminal. Data Zone PTU and PAYG by default — Regional and Global PTU/PAYG on demand — with results grouped by model.
 
 ## Install
 
@@ -22,15 +22,17 @@ ptu availability --refresh                                # bypasses caches and 
 ptu availability -r swedencentral,francecentral -m gpt-4.1
 ptu availability -r uksouth -m gpt-5.6-luna -t regional
 ptu availability --tab az-americas -r eastus -m gpt-4.1
-ptu availability -t datazone,global                       # types: datazone (default), regional, global
+ptu availability -t datazone,global                       # PTU and PAYG Standard types: datazone (default), regional, global
 ptu availability --preset eu
 ```
 
 Regions and models are repeatable or comma-separated and matched case-insensitively; explicit flags override the preset.
 
+If the latest API refresh failed but its response includes the last successful dataset, `ptu` renders that cached data with a warning and its generation timestamp. A failed response without cached regions remains an API failure (exit code `2`).
+
 PTU status distinguishes `yes` (supported with positive capacity), `no capacity` (supported with zero capacity), and `not supported` (the API reports no support for that deployment type). Missing or unusable support/capacity data is `unknown`; a model/region absent from the API is `not tracked`. Regional, Data Zone, and Global support and capacity are independent.
 
-PAYG Data Zone Standard availability is retrieved on each run from Microsoft's public [Foundry model region availability](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=standard&tabs=az-europe#data-zone-standard) page. The Learn geography defaults to Europe (`az-europe`) and can be selected with `--tab az-americas`, `--tab az-europe`, `--tab az-apac`, or `--tab az-mea`; an explicit flag overrides the preset. `yes` means at least one documented Azure OpenAI model version is available in that region. If Microsoft Learn is unavailable, PTU results still render and the PAYG column shows `unknown`.
+PAYG Global Standard, Data Zone Standard, and Regional Standard availability is retrieved on each run from Microsoft's public [Foundry model region availability](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=standard&tabs=az-europe#global-standard) page. `-t|--type` selects matching PTU and PAYG columns (`datazone` by default; also `regional` and `global`), and the selection can be saved with `ptu preset set <name> --types datazone,global`. The Learn geography defaults to Europe (`az-europe`) and can be selected with `--tab az-americas`, `--tab az-europe`, `--tab az-apac`, or `--tab az-mea`; an explicit flag overrides the preset. `yes` means at least one documented Azure OpenAI model version is available in that region. If Microsoft Learn is unavailable, PTU results still render and the PAYG columns show `unknown`.
 
 ## Manage the endpoint
 
@@ -56,7 +58,7 @@ Named region/model/Learn-geography profiles; one is the active default used by `
 ```shell
 ptu preset list                                           # * marks the active preset
 ptu preset show [name]
-ptu preset set eu --regions francecentral --models gpt-4.1,gpt-5-mini --tab az-europe
+ptu preset set eu --regions francecentral --models gpt-4.1,gpt-5-mini --types datazone,global --tab az-europe
 ptu preset use eu
 ptu preset remove eu                                      # 'default' is protected
 ptu preset reset [--all]

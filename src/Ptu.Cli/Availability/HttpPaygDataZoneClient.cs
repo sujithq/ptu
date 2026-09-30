@@ -3,7 +3,7 @@ using AngleSharp.Html.Parser;
 
 namespace Ptu.Cli.Availability;
 
-/// <summary>Reads PAYG Data Zone Standard availability from the public Microsoft Learn table.</summary>
+/// <summary>Reads PAYG Standard availability from the public Microsoft Learn tables.</summary>
 public sealed class HttpPaygDataZoneClient(HttpClient http) : IPaygDataZoneClient
 {
     internal const string SourceUrl =
@@ -56,34 +56,49 @@ public sealed class HttpPaygDataZoneClient(HttpClient http) : IPaygDataZoneClien
         }
 
         var document = new HtmlParser().ParseDocument(html);
-        var section = FindAzureOpenAiDataZoneSection(document)
-            ?? throw new InvalidOperationException("Microsoft Learn no longer exposes the PAYG Data Zone Standard availability table in the expected section.");
-
-        var tabPanels = section.QuerySelectorAll("[role=tabpanel][data-tab]");
-        var selectedPanel = tabPanels.FirstOrDefault(panel =>
-            string.Equals(panel.GetAttribute("data-tab"), normalizedTab, StringComparison.OrdinalIgnoreCase));
-        if (tabPanels.Length > 0 && selectedPanel is null)
+        var modelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>();
+        foreach (var (type, sectionId, heading) in StandardSections)
         {
-            throw new InvalidOperationException($"Microsoft Learn returned no PAYG Data Zone Standard table for region tab '{normalizedTab}'.");
+            var section = FindAzureOpenAiSection(document, sectionId, heading)
+                ?? throw new InvalidOperationException($"Microsoft Learn no longer exposes the PAYG {PtuTypes.DisplayName(type)} Standard availability table in the expected section.");
+
+            var tabPanels = section.QuerySelectorAll("[role=tabpanel][data-tab]");
+            var selectedPanel = tabPanels.FirstOrDefault(panel =>
+                string.Equals(panel.GetAttribute("data-tab"), normalizedTab, StringComparison.OrdinalIgnoreCase));
+            if (tabPanels.Length > 0 && selectedPanel is null)
+            {
+                throw new InvalidOperationException($"Microsoft Learn returned no PAYG {PtuTypes.DisplayName(type)} Standard table for region tab '{normalizedTab}'.");
+            }
+
+            var availabilityContent = selectedPanel ?? section;
+            var models = ParseTables(availabilityContent.QuerySelectorAll("table"));
+            if (models.Count == 0
+                && !availabilityContent.TextContent.Contains("Not available", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Microsoft Learn returned no PAYG {PtuTypes.DisplayName(type)} Standard model availability rows.");
+            }
+
+            modelsByType[type] = models;
         }
 
-        var availabilityContent = selectedPanel ?? section;
-        var models = ParseTables(availabilityContent.QuerySelectorAll("table"));
-        if (models.Count == 0
-            && !availabilityContent.TextContent.Contains("Not available", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("Microsoft Learn returned no PAYG Data Zone Standard model availability rows.");
-        }
-
-        return new PaygDataZoneSnapshot { Models = models };
+        return new PaygDataZoneSnapshot { ModelsByType = modelsByType };
     }
 
-    private static IElement? FindAzureOpenAiDataZoneSection(IDocument document)
+    private static readonly (PtuType Type, string SectionId, string Heading)[] StandardSections =
+    [
+        (PtuType.Global, "global-standard", "Global Standard"),
+        (PtuType.DataZone, "data-zone-standard", "Data Zone Standard"),
+        (PtuType.Regional, "standardregional", "Standard/Regional"),
+    ];
+
+    private static IElement? FindAzureOpenAiSection(IDocument document, string sectionId, string sectionHeading)
     {
-        var dataZoneHeading = document.QuerySelector("#data-zone-standard");
-        var sectionStart = dataZoneHeading?.ParentElement?.Children.Length == 1
-            ? dataZoneHeading.ParentElement
-            : dataZoneHeading;
+        var sectionHeadingElement = document.QuerySelector($"#{sectionId}")
+            ?? document.QuerySelectorAll("h2").FirstOrDefault(element =>
+                string.Equals(element.TextContent.Trim(), sectionHeading, StringComparison.OrdinalIgnoreCase));
+        var sectionStart = sectionHeadingElement?.ParentElement?.Children.Length == 1
+            ? sectionHeadingElement.ParentElement
+            : sectionHeadingElement;
 
         for (var current = sectionStart?.NextElementSibling; current is not null; current = current.NextElementSibling)
         {

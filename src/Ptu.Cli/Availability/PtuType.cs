@@ -36,4 +36,36 @@ public static class PtuTypes
         PtuType.Global => "Global",
         _ => type.ToString(),
     };
+
+    public static bool TryParseMany(IEnumerable<string> values, out List<PtuType> types, out string? invalidValue)
+    {
+        types = [];
+        invalidValue = null;
+
+        foreach (var raw in values.SelectMany(value =>
+                     value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+        {
+            if (!TryParse(raw, out var type))
+            {
+                invalidValue = raw;
+                return false;
+            }
+
+            if (!types.Contains(type))
+            {
+                types.Add(type);
+            }
+        }
+
+        return true;
+    }
+
+    public static List<string> ToNames(IEnumerable<PtuType> types) =>
+        types.Select(type => type switch
+        {
+            PtuType.DataZone => "datazone",
+            PtuType.Regional => "regional",
+            PtuType.Global => "global",
+            _ => throw new ArgumentOutOfRangeException(nameof(types), type, "Unknown PTU type."),
+        }).ToList();
 }
