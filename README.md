@@ -88,6 +88,13 @@ ptu availability --preset eu -t datazone,global
 
 Exit codes: `0` success, `1` invalid input (unknown preset/type, empty region or model list), `2` API failure.
 
+### Copilot agents
+
+Two repository custom agents can produce availability reports:
+
+- `ptu-availability` runs the installed `ptu availability` command and uses its active preset by default.
+- `ptu-availability-direct` independently reads the configured defaults and queries the PTU API and Microsoft Learn directly; it never runs the installed `ptu` tool.
+
 ## Endpoint
 
 The endpoint is stored in `%APPDATA%/ptu/config.json` and can be inspected or changed at any time:
