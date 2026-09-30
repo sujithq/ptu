@@ -46,14 +46,24 @@ ptu availability
 
 Update with `dotnet tool update --global sujithq.ptu.cli`; remove with `dotnet tool uninstall --global sujithq.ptu.cli`.
 
-To install the latest development build from this checkout, pack it locally and install or update the global tool from the generated package. The package version comes from `src/Ptu.Cli/Ptu.Cli.csproj` (currently `0.6.0`); this avoids requiring that development version to have been published to NuGet:
+To install a `.nupkg` downloaded from a [GitHub release](https://github.com/sujithq/ptu/releases), pass the directory containing the package as a local NuGet source:
+
+```pwsh
+$packageDirectory = Split-Path (Resolve-Path .\sujithq.ptu.cli.0.8.0.nupkg)
+dotnet tool install --global sujithq.ptu.cli --version 0.8.0 --add-source $packageDirectory
+ptu --version
+```
+
+Use `dotnet tool update` instead of `dotnet tool install` when the tool is already installed. Match `--version` and the filename to the downloaded release.
+
+To install the latest development build from this checkout, pack it locally and install or update the global tool from the generated package. The package version comes from `src/Ptu.Cli/Ptu.Cli.csproj` (currently `0.8.0`); this avoids requiring that development version to have been published to NuGet:
 
 ```pwsh
 dotnet pack src\Ptu.Cli\Ptu.Cli.csproj --configuration Release
-dotnet tool update --global sujithq.ptu.cli --version 0.6.0 --add-source artifacts
+dotnet tool update --global sujithq.ptu.cli --version 0.8.0 --add-source artifacts
 ```
 
-If the tool is not installed globally yet, use `dotnet tool install --global sujithq.ptu.cli --version 0.6.0 --add-source artifacts` instead. Update the version argument when the project version changes. Verify the installation with `ptu --version`.
+If the tool is not installed globally yet, use `dotnet tool install --global sujithq.ptu.cli --version 0.8.0 --add-source artifacts` instead. Update the version argument when the project version changes. Verify the installation with `ptu --version`.
 
 ## PTU availability
 
