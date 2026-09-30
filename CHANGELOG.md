@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.7.0"></a>
+## [0.7.0](https://www.github.com/sujithq/ptu/releases/tag/v0.7.0) (2026-09-30)
+
+### 🚀 Features
+
+* **availability:** explain statuses in command output ([c97aa81](https://www.github.com/sujithq/ptu/commit/c97aa813cd13e46ca393deb664939633fce3a5a3))
+
 <a name="0.6.0"></a>
 ## [0.6.0](https://www.github.com/sujithq/ptu/releases/tag/v0.6.0) (2026-09-30)
 
