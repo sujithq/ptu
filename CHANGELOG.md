@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.6.0"></a>
+## [0.6.0](https://www.github.com/sujithq/ptu/releases/tag/v0.6.0) (2026-09-30)
+
+### 🚀 Features
+
+* **availability:** add selectable PAYG Standard deployment types ([b8dfe01](https://www.github.com/sujithq/ptu/commit/b8dfe01e5f6d154b2bedb7275eca23b20c1fa663))
+
 <a name="0.5.1"></a>
 ## [0.5.1](https://www.github.com/sujithq/ptu/releases/tag/v0.5.1) (2026-09-15)
 
