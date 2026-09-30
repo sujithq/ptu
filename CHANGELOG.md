@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.8.0"></a>
+## [0.8.0](https://www.github.com/sujithq/ptu/releases/tag/v0.8.0) (2026-09-30)
+
+### 🚀 Features
+
+* **availability:** add agents for independent availability checks and installed CLI usage ([fa088bf](https://www.github.com/sujithq/ptu/commit/fa088bf1423849800ae5d1dd63d1e66f4bc09bb9))
+
 <a name="0.7.0"></a>
 ## [0.7.0](https://www.github.com/sujithq/ptu/releases/tag/v0.7.0) (2026-09-30)
 
