@@ -88,7 +88,7 @@ public class AvailabilityCommandTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("640", result.Output);
-        Assert.DoesNotContain("not tracked", result.Output);
+        Assert.DoesNotContain("not tracked", TableOutput(result.Output));
     }
 
     [Fact]
@@ -155,6 +155,12 @@ public class AvailabilityCommandTests
 
         Assert.Contains("Data Zone", result.Output);
         Assert.Contains("PAYG Data Zone Standard", result.Output);
+        Assert.Contains("PTU: yes = supported with positive capacity", result.Output);
+        Assert.Contains("no capacity = supported, capacity is 0", result.Output);
+        Assert.Contains("not supported = API explicitly says unsupported", result.Output);
+        Assert.Contains("not tracked = model/region absent from API", result.Output);
+        Assert.Contains("PAYG Standard: yes = at least one documented model version", result.Output);
+        Assert.Contains("unknown = Microsoft Learn data could not be retrieved or parsed", result.Output);
         Assert.DoesNotContain("PAYG Regional Standard", result.Output);
         Assert.DoesNotContain("PAYG Global Standard", result.Output);
         Assert.DoesNotContain("Regional", result.Output);
@@ -170,7 +176,7 @@ public class AvailabilityCommandTests
         var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal(2, CountOccurrences(result.Output, "yes"));
+        Assert.Equal(2, CountOccurrences(TableOutput(result.Output), "yes"));
         Assert.Equal(1, paygClient.CallCount);
     }
 
@@ -192,8 +198,8 @@ public class AvailabilityCommandTests
         var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal(1, CountOccurrences(result.Output, "yes"));
-        Assert.Equal(1, CountOccurrences(result.Output, "no"));
+        Assert.Equal(1, CountOccurrences(TableOutput(result.Output), "yes"));
+        Assert.Equal(1, CountOccurrences(TableOutput(result.Output), "no"));
     }
 
     [Fact]
@@ -295,8 +301,8 @@ public class AvailabilityCommandTests
         Assert.Contains("uksouth", result.Output);
         Assert.Contains("gpt-5.6-luna", result.Output);
         Assert.Contains(expectedStatus, result.Output);
-        Assert.DoesNotContain("not tracked", result.Output);
-        Assert.Equal(expectedStatus == "yes" ? 1 : 0, CountOccurrences(result.Output, "yes"));
+        Assert.DoesNotContain("not tracked", TableOutput(result.Output));
+        Assert.Equal(expectedStatus == "yes" ? 1 : 0, CountOccurrences(TableOutput(result.Output), "yes"));
         if (capacity is { } expectedCapacity)
         {
             Assert.Matches($@"\s{expectedCapacity.ToString(CultureInfo.InvariantCulture)}\s", result.Output);
@@ -364,7 +370,7 @@ public class AvailabilityCommandTests
         Assert.Contains("failed", result.Output);
         Assert.Contains("Showing cached data generated at 2026-07-10 06:00:00Z", result.Output);
         Assert.Contains("640", result.Output);
-        Assert.DoesNotContain("not tracked", result.Output);
+        Assert.DoesNotContain("not tracked", TableOutput(result.Output));
     }
 
     [Fact]
@@ -449,6 +455,9 @@ public class AvailabilityCommandTests
 
         return count;
     }
+
+    private static string TableOutput(string output) =>
+        output.Split("Status legend:", 2, StringSplitOptions.None)[0];
 
     [Fact]
     public void Availability_WhenPresetHasNoModels_FailsWithExitCode1()

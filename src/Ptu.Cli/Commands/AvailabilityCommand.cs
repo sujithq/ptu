@@ -158,6 +158,7 @@ public sealed class AvailabilityCommand(
         }
 
         console.Write(BuildTable(snapshot, paygSnapshot, regions, models, types));
+        WriteStatusLegend(console);
         console.MarkupLineInterpolated($"[grey]PAYG geography tab: {tab}[/]");
 
         if (snapshot.GeneratedAt is { } generatedAt)
@@ -166,6 +167,13 @@ public sealed class AvailabilityCommand(
         }
 
         return 0;
+    }
+
+    private static void WriteStatusLegend(IAnsiConsole console)
+    {
+        console.MarkupLine("[grey]Status legend:[/]");
+        console.MarkupLine("[grey]PTU: yes = supported with positive capacity; no capacity = supported, capacity is 0; not supported = API explicitly says unsupported; unknown = missing/unusable data; not tracked = model/region absent from API. '-' capacity = not reported.[/]");
+        console.MarkupLine("[grey]PAYG Standard: yes = at least one documented model version is available in the region; no = no documented version is listed as available; unknown = Microsoft Learn data could not be retrieved or parsed.[/]");
     }
 
     /// <summary>

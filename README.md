@@ -46,7 +46,14 @@ ptu availability
 
 Update with `dotnet tool update --global sujithq.ptu.cli`; remove with `dotnet tool uninstall --global sujithq.ptu.cli`.
 
-For a local build: `dotnet pack src/Ptu.Cli -c Release` then `dotnet tool install --global sujithq.ptu.cli --add-source ./artifacts`.
+To install the latest development build from this checkout, pack it locally and install or update the global tool from the generated package. The package version comes from `src/Ptu.Cli/Ptu.Cli.csproj` (currently `0.6.0`); this avoids requiring that development version to have been published to NuGet:
+
+```pwsh
+dotnet pack src\Ptu.Cli\Ptu.Cli.csproj --configuration Release
+dotnet tool update --global sujithq.ptu.cli --version 0.6.0 --add-source artifacts
+```
+
+If the tool is not installed globally yet, use `dotnet tool install --global sujithq.ptu.cli --version 0.6.0 --add-source artifacts` instead. Update the version argument when the project version changes. Verify the installation with `ptu --version`.
 
 ## PTU availability
 
@@ -65,6 +72,8 @@ PTU status is shown separately from the reported capacity:
 | `not tracked` | The API did not return the requested model/region. |
 
 Regional, Data Zone, and Global are separate deployment types; support and capacity in one do not imply availability in another.
+
+The availability output prints a status legend below the table. PTU `not tracked` means the API omitted the model/region; a `-` capacity means no capacity value was reported. PAYG `no` means Microsoft Learn does not list a documented model version as available for that region, while `unknown` means the Learn data could not be retrieved or parsed.
 
 PAYG Global Standard, Data Zone Standard, and Regional Standard availability is retrieved on each run from Microsoft's public [Foundry model region availability](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=standard&tabs=az-europe#global-standard) page. The Learn geography defaults to Europe (`az-europe`) and can be selected with `--tab az-americas`, `--tab az-europe`, `--tab az-apac`, or `--tab az-mea`; an explicit flag overrides the preset. Because CLI model names don't select a version, `yes` means at least one documented Azure OpenAI model version supports that PAYG Standard deployment in that region. If the public page cannot be retrieved or parsed, PTU results still render and PAYG values are shown as `unknown`.
 
