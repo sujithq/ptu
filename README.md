@@ -22,8 +22,8 @@ A .NET 11 CLI base built with [Spectre.Console](https://spectreconsole.net), tes
 
 ## Prerequisites
 
-- To **install and run** the tool: .NET 10 (LTS) or .NET 11 runtime
-- To **build** this repo: .NET SDK `11.0.100-preview.5` or later (the package multi-targets `net10.0;net11.0`)
+- To **install and run** the tool: .NET 9, .NET 10 (LTS), or .NET 11 runtime. .NET 9 is out of support; prefer .NET 10 or later when possible.
+- To **build** this repo: .NET SDK `11.0.100-preview.5` or later (the package multi-targets `net9.0;net10.0;net11.0`)
 - [APM CLI](https://github.com/microsoft/apm) (only needed to manage skills)
 
 ## Build, test, run

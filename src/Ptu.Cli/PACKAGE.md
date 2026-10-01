@@ -8,7 +8,7 @@ Compare Azure PTU (provisioned throughput) and PAYG Standard model availability 
 dotnet tool install --global sujithq.ptu.cli
 ```
 
-Requires the .NET 10 (LTS) or .NET 11 runtime.
+Requires the .NET 9, .NET 10, or .NET 11 runtime. .NET 9 is out of support; prefer .NET 10 or later when possible.
 
 ## First run
 

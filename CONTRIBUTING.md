@@ -5,17 +5,17 @@ Thanks for your interest in contributing!
 ## Prerequisites
 
 - .NET SDK `11.0.100-preview.5` or later ([global.json](global.json) pins the exact version; `rollForward: latestFeature` accepts newer previews).
-- The .NET 10 and 11 runtimes to run the multi-targeted test suite.
+- The .NET 9, 10, and 11 runtimes to run the multi-targeted test suite.
 
 ## Build and test
 
 ```pwsh
 dotnet build --nologo
-dotnet test --nologo          # runs the suite on net10.0 and net11.0
+dotnet test --nologo          # runs the suite on net9.0, net10.0, and net11.0
 dotnet run --project src/Ptu.Cli -f net10.0 -- --help
 ```
 
-Every change is expected to keep the test suite green on **both** target frameworks. New behavior needs new tests — the suite uses `CommandAppTester` against the real `Program.Configure` wiring, so tests exercise actual command registration.
+Every change is expected to keep the test suite green on **all three** target frameworks. New behavior needs new tests — the suite uses `CommandAppTester` against the real `Program.Configure` wiring, so tests exercise actual command registration.
 
 ## Conventional commits (required)
 

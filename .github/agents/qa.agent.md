@@ -35,7 +35,7 @@ under `src/` is read-only for you (propose diffs instead of applying them).
 
 ## Repository facts
 
-- Solution: `Ptu.slnx` (.NET 11 preview SDK pinned in `global.json`).
+- Solution: `Ptu.slnx` (.NET 11 preview SDK pinned in `global.json`; projects target .NET 9, 10, and 11).
 - Product code: `src/Ptu.Cli` — commands live in `src/Ptu.Cli/Commands/`,
   wiring in `Program.Configure(IConfigurator)`.
 - Tests: `tests/Ptu.Cli.Tests` — xUnit + `Spectre.Console.Cli.Testing`.
