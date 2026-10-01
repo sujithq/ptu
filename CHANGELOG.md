@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.9.0"></a>
+## [0.9.0](https://www.github.com/sujithq/ptu/releases/tag/v0.9.0) (2026-10-01)
+
+### 🚀 Features
+
+* support .NET 9 ([04b724e](https://www.github.com/sujithq/ptu/commit/04b724eb8c54c9453b98d172eec49632bda9e54e))
+
+### 📚 Documentation
+
+* document installation from downloaded package ([2f72c9f](https://www.github.com/sujithq/ptu/commit/2f72c9fdd35f2731fdea7c35bec18bab69e67b2a))
+
 <a name="0.8.0"></a>
 ## [0.8.0](https://www.github.com/sujithq/ptu/releases/tag/v0.8.0) (2026-09-30)
 
