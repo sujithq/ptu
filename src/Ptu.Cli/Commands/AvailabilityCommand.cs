@@ -40,6 +40,10 @@ public sealed class AvailabilityCommand(
         [CommandOption("--refresh")]
         [Description("Bypass caches and retrieve fresh PTU and PAYG data.")]
         public bool Refresh { get; init; }
+
+        [CommandOption("--available-only")]
+        [Description("Show only model and region rows with PTU or PAYG availability.")]
+        public bool AvailableOnly { get; init; }
     }
 
     protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
@@ -157,7 +161,7 @@ public sealed class AvailabilityCommand(
             console.MarkupLineInterpolated($"[yellow]Warning:[/] PAYG Standard availability could not be retrieved from Microsoft Learn: {ex.Message}");
         }
 
-        console.Write(BuildTable(snapshot, paygSnapshot, regions, models, types));
+        console.Write(BuildTable(snapshot, paygSnapshot, regions, models, types, settings.AvailableOnly));
         WriteStatusLegend(console);
         console.MarkupLineInterpolated($"[grey]PAYG geography tab: {tab}[/]");
 
@@ -211,7 +215,8 @@ public sealed class AvailabilityCommand(
         PaygDataZoneSnapshot? paygSnapshot,
         List<string> regions,
         List<string> models,
-        List<PtuType> types)
+        List<PtuType> types,
+        bool availableOnly)
     {
         var table = new Table().Border(TableBorder.Rounded);
         table.AddColumn("Model");
@@ -229,6 +234,14 @@ public sealed class AvailabilityCommand(
             foreach (var region in regions)
             {
                 var modelData = snapshot.FindRegion(region)?.FindModel(model);
+                var rowIsAvailable = types.Any(type =>
+                    modelData?.Offers[type].Available == true
+                    || paygSnapshot?.IsAvailable(type, model, region) == true);
+                if (availableOnly && !rowIsAvailable)
+                {
+                    continue;
+                }
+
                 var cells = new List<string>
                 {
                     firstRowOfGroup ? Markup.Escape(model) : string.Empty,

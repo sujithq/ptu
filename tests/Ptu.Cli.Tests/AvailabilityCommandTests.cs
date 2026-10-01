@@ -430,6 +430,197 @@ public class AvailabilityCommandTests
     }
 
     [Fact]
+    public void Availability_WithAvailableOnly_HidesRowsWithoutPtuOrPaygAvailability()
+    {
+        var paygClient = new FakePaygDataZoneClient
+        {
+            Snapshot = new()
+            {
+                ModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>(),
+            },
+        };
+        var (app, _, client) = TestHost.Create(paygClient);
+        client.Snapshot = new AvailabilitySnapshot
+        {
+            Status = "succeeded",
+            Regions =
+            [
+                new RegionAvailability
+                {
+                    Region = "swedencentral",
+                    Models =
+                    [
+                        new ModelAvailability
+                        {
+                            Name = "gpt-4.1",
+                            Offers = new Dictionary<PtuType, PtuOffer>
+                            {
+                                [PtuType.DataZone] = new(false, null),
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var result = app.Run("availability", "--available-only", "-r", "swedencentral", "-m", "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.DoesNotContain("gpt-4.1", TableOutput(result.Output));
+        Assert.Contains("Status legend:", result.Output);
+    }
+
+    [Fact]
+    public void Availability_WithAvailableOnly_KeepsRowsWithPaygAvailability()
+    {
+        var paygClient = new FakePaygDataZoneClient
+        {
+            Snapshot = new()
+            {
+                ModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>
+                {
+                    [PtuType.DataZone] = [FakePaygDataZoneClient.Model("gpt-4.1", "2025-04-14", "swedencentral")],
+                },
+            },
+        };
+        var (app, _, client) = TestHost.Create(paygClient);
+        client.Snapshot = new AvailabilitySnapshot
+        {
+            Status = "succeeded",
+            Regions =
+            [
+                new RegionAvailability
+                {
+                    Region = "swedencentral",
+                    Models = [],
+                },
+            ],
+        };
+
+        var result = app.Run("availability", "--available-only", "-r", "swedencentral", "-m", "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("gpt-4.1", TableOutput(result.Output));
+        Assert.Contains("yes", TableOutput(result.Output));
+    }
+
+    [Fact]
+    public void Availability_WithAvailableOnly_KeepsRowsWithPtuSupportAndNoCapacity()
+    {
+        var paygClient = new FakePaygDataZoneClient
+        {
+            Snapshot = new()
+            {
+                ModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>(),
+            },
+        };
+        var (app, _, client) = TestHost.Create(paygClient);
+        client.Snapshot = new AvailabilitySnapshot
+        {
+            Status = "succeeded",
+            Regions =
+            [
+                new RegionAvailability
+                {
+                    Region = "swedencentral",
+                    Models =
+                    [
+                        new ModelAvailability
+                        {
+                            Name = "gpt-4.1",
+                            Offers = new Dictionary<PtuType, PtuOffer>
+                            {
+                                [PtuType.DataZone] = new(true, 0),
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var result = app.Run("availability", "--available-only", "-r", "swedencentral", "-m", "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("gpt-4.1", TableOutput(result.Output));
+        Assert.Contains("no capacity", TableOutput(result.Output));
+    }
+
+    [Fact]
+    public void Availability_WithAvailableOnly_UsesFirstDisplayedRowForModelLabel()
+    {
+        var paygClient = new FakePaygDataZoneClient
+        {
+            Snapshot = new()
+            {
+                ModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>(),
+            },
+        };
+        var (app, _, client) = TestHost.Create(paygClient);
+        client.Snapshot = new AvailabilitySnapshot
+        {
+            Status = "succeeded",
+            Regions =
+            [
+                new RegionAvailability
+                {
+                    Region = "unavailable-region",
+                    Models =
+                    [
+                        new ModelAvailability
+                        {
+                            Name = "gpt-4.1",
+                            Offers = new Dictionary<PtuType, PtuOffer>
+                            {
+                                [PtuType.DataZone] = new(false, null),
+                            },
+                        },
+                    ],
+                },
+                new RegionAvailability
+                {
+                    Region = "available-region",
+                    Models =
+                    [
+                        new ModelAvailability
+                        {
+                            Name = "gpt-4.1",
+                            Offers = new Dictionary<PtuType, PtuOffer>
+                            {
+                                [PtuType.DataZone] = new(true, 10),
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var result = app.Run(
+            "availability",
+            "--available-only",
+            "-r",
+            "unavailable-region,available-region",
+            "-m",
+            "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        var tableOutput = TableOutput(result.Output);
+        Assert.Contains("available-region", tableOutput);
+        Assert.DoesNotContain("unavailable-region", tableOutput);
+        Assert.Equal(1, CountOccurrences(tableOutput, "gpt-4.1"));
+    }
+
+    [Fact]
+    public void Availability_Help_ShowsAvailableOnlyOption()
+    {
+        var (app, _, _) = TestHost.Create();
+
+        var result = app.Run("availability", "--help");
+
+        Assert.Contains("--available-only", result.Output);
+        Assert.Contains("PTU or PAYG availability", result.Output);
+    }
+
+    [Fact]
     public void Availability_GroupsRowsByModel()
     {
         var (app, _, _) = TestHost.Create();
