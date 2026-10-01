@@ -67,7 +67,7 @@ If the tool is not installed globally yet, use `dotnet tool install --global suj
 
 ## PTU availability
 
-`ptu availability` shows provisioned-throughput (PTU) and pay-as-you-go (PAYG) Standard availability grouped by model (one group per model, one row per region). On the very first run it asks for the availability API endpoint and stores it in the config file; the endpoint returns the full PTU dataset, so filtering happens client-side. Data Zone PTU and PAYG Data Zone Standard are shown by default. `--type regional` or `--type global` adds the matching PTU and PAYG Standard columns; provide a comma-separated list to show multiple deployment types. Pass `--refresh` to bypass caches for both data sources and request fresh snapshots.
+`ptu availability` shows provisioned-throughput (PTU) and pay-as-you-go (PAYG) Standard availability grouped by model (one group per model, one row per region). On the very first run it asks for the availability API endpoint and stores it in the config file; the endpoint returns the full PTU dataset, so filtering happens client-side. Data Zone PTU and PAYG Data Zone Standard are shown by default. `--type regional` or `--type global` adds the matching PTU and PAYG Standard columns; provide a comma-separated list to show multiple deployment types. Pass `--refresh` to bypass caches for both data sources and request fresh snapshots. Pass `--available-only` to show only model and region rows with PTU or PAYG availability; PTU support with zero capacity counts as available.
 
 If the latest API refresh failed but its response includes the last successful dataset, `ptu` renders that cached data with a warning and its generation timestamp. A failed response without cached regions remains an API failure (exit code `2`).
 
@@ -90,6 +90,7 @@ PAYG Global Standard, Data Zone Standard, and Regional Standard availability is 
 ```pwsh
 ptu availability                                        # active preset (factory: swedencentral,francecentral × gpt-5.4,gpt-5.4-mini,gpt-5-mini,gpt-4.1)
 ptu availability --refresh                              # bypass caches and request fresh data
+ptu availability --available-only                       # show only available model and region rows
 ptu availability -r swedencentral,francecentral -m gpt-4.1
 ptu availability -r uksouth -m gpt-5.6-luna -t regional
 ptu availability --tab az-americas -r eastus -m gpt-4.1
