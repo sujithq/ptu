@@ -47,3 +47,11 @@ The availability API endpoint is user-supplied configuration. Never hardcode pri
 dotnet versionize                      # bump + CHANGELOG + chore(release) commit + tag
 git push --follow-tags origin main    # tag triggers the release workflow (NuGet + GitHub release)
 ```
+
+The complete local release sequence can also be run from the repository root with:
+
+```pwsh
+.\release.ps1
+```
+
+The script reads the version produced by Versionize, pushes the commit and tag, packs the tool, and updates the global tool from the local `artifacts` source.
