@@ -45,13 +45,15 @@ public class AvailabilityCommandTests
     public void Availability_WithRefresh_RequestsFreshData()
     {
         var paygClient = new FakePaygDataZoneClient();
-        var (app, _, client) = TestHost.Create(paygClient);
+        var quotaClient = new FakePaygQuotaClient();
+        var (app, _, client) = TestHost.Create(paygClient, quotaClient);
 
-        var result = app.Run("availability", "--refresh");
+        var result = app.Run("availability", "--refresh", "--show-quota");
 
         Assert.Equal(0, result.ExitCode);
         Assert.True(client.LastRefresh);
         Assert.True(paygClient.LastRefresh);
+        Assert.True(quotaClient.LastRefresh);
     }
 
     [Fact]
@@ -63,6 +65,103 @@ public class AvailabilityCommandTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.False(client.LastRefresh);
+    }
+
+    [Fact]
+    public void Availability_WithoutShowQuota_DoesNotRequestOrRenderQuotaLimits()
+    {
+        var quotaClient = new FakePaygQuotaClient();
+        var (app, _, _) = TestHost.Create(quotaClient: quotaClient);
+
+        var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(0, quotaClient.CallCount);
+        Assert.DoesNotContain("PAYG Standard quota limits by tier", result.Output);
+    }
+
+    [Fact]
+    public void Availability_WithShowQuota_RendersMatchingLimitsPerTier()
+    {
+        var quotaClient = new FakePaygQuotaClient();
+        var (app, _, _) = TestHost.Create(quotaClient: quotaClient);
+
+        var result = app.Run(
+            "availability",
+            "-r", "swedencentral",
+            "-m", "gpt-4.1",
+            "-t", "datazone,global",
+            "--show-quota");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(1, quotaClient.CallCount);
+        Assert.Contains("PAYG Standard quota limits by tier", result.Output);
+        Assert.Contains("Tier 1", result.Output);
+        Assert.Contains("Tier 2", result.Output);
+        Assert.Contains("Data Zone Standard", result.Output);
+        Assert.Contains("Global Standard", result.Output);
+        Assert.Contains("300,000", result.Output);
+        Assert.Contains("2,000,000", result.Output);
+        Assert.Contains("not regional capacity values", result.Output);
+    }
+
+    [Fact]
+    public void Availability_WithSingleQuotaLayout_RendersOneTableWithTierColumn()
+    {
+        var quotaClient = new FakePaygQuotaClient();
+        var (app, _, _) = TestHost.Create(quotaClient: quotaClient);
+
+        var result = app.Run(
+            "availability",
+            "-r", "swedencentral",
+            "-m", "gpt-4.1",
+            "-t", "datazone,global",
+            "--show-quota",
+            "--quota-layout", "single");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Tier 1", result.Output);
+        Assert.Contains("Tier 2", result.Output);
+        Assert.Contains("Tier", result.Output);
+        Assert.Contains("RPM", result.Output);
+        Assert.Contains("TPM", result.Output);
+        Assert.Equal(1, CountOccurrences(result.Output, "Deployment type"));
+    }
+
+    [Fact]
+    public void Availability_WithUnknownQuotaLayout_FailsBeforeCallingApis()
+    {
+        var quotaClient = new FakePaygQuotaClient();
+        var (app, _, client) = TestHost.Create(quotaClient: quotaClient);
+
+        var result = app.Run("availability", "--quota-layout", "grid");
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("Unknown quota layout 'grid'", result.Output);
+        Assert.Null(client.LastEndpoint);
+        Assert.Equal(0, quotaClient.CallCount);
+    }
+
+    [Fact]
+    public void Availability_WhenQuotaSourceFails_WarnsAndKeepsAvailabilityResult()
+    {
+        var quotaClient = new FakePaygQuotaClient
+        {
+            ThrowOnGet = new HttpRequestException("quota docs unavailable"),
+        };
+        var (app, _, _) = TestHost.Create(quotaClient: quotaClient);
+
+        var result = app.Run(
+            "availability",
+            "-r", "swedencentral",
+            "-m", "gpt-4.1",
+            "--show-quota");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Warning", result.Output);
+        Assert.Contains("quota docs unavailable", result.Output);
+        Assert.Contains("640", result.Output);
+        Assert.DoesNotContain("PAYG Standard quota limits by tier", result.Output);
     }
 
     [Fact]

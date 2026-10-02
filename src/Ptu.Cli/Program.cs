@@ -57,6 +57,7 @@ public static class Program
         });
         services.AddSingleton<IAvailabilityClient, HttpAvailabilityClient>();
         services.AddSingleton<IPaygDataZoneClient, HttpPaygDataZoneClient>();
+        services.AddSingleton<IPaygQuotaClient, HttpPaygQuotaClient>();
     }
 
     /// <summary>
@@ -73,6 +74,8 @@ public static class Program
             .WithExample("availability")
             .WithExample("availability", "-r", "swedencentral,francecentral", "-m", "gpt-4.1")
             .WithExample("availability", "--tab", "az-americas", "-r", "eastus", "-m", "gpt-4.1")
+            .WithExample("availability", "--show-quota", "-m", "gpt-4.1")
+            .WithExample("availability", "--show-quota", "--quota-layout", "single", "-m", "gpt-4.1")
             .WithExample("availability", "--preset", "eu", "--type", "datazone,global");
 
         config.AddBranch("endpoint", endpoint =>

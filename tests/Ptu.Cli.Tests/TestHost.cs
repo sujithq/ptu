@@ -13,17 +13,20 @@ internal static class TestHost
     public const string TestEndpoint = "https://unit.test/api/availability/azure-ptu";
 
     public static (CommandAppTester App, InMemoryPresetStore Store, FakeAvailabilityClient Client) Create(
-        FakePaygDataZoneClient? paygClient = null)
+        FakePaygDataZoneClient? paygClient = null,
+        FakePaygQuotaClient? quotaClient = null)
     {
         var store = new InMemoryPresetStore();
         store.Config.ApiEndpoint = TestEndpoint;
         var client = new FakeAvailabilityClient();
         paygClient ??= new FakePaygDataZoneClient();
+        quotaClient ??= new FakePaygQuotaClient();
 
         var services = new ServiceCollection();
         services.AddSingleton<IPresetStore>(store);
         services.AddSingleton<IAvailabilityClient>(client);
         services.AddSingleton<IPaygDataZoneClient>(paygClient);
+        services.AddSingleton<IPaygQuotaClient>(quotaClient);
 
         var app = new CommandAppTester(new TypeRegistrar(services));
         app.Configure(Ptu.Cli.Program.Configure);

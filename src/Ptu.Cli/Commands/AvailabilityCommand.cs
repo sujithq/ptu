@@ -12,7 +12,8 @@ public sealed class AvailabilityCommand(
     IAnsiConsole console,
     IPresetStore store,
     IAvailabilityClient client,
-    IPaygDataZoneClient paygClient)
+    IPaygDataZoneClient paygClient,
+    IPaygQuotaClient quotaClient)
     : AsyncCommand<AvailabilityCommand.Settings>
 {
     public sealed class Settings : CommandSettings
@@ -40,6 +41,14 @@ public sealed class AvailabilityCommand(
         [CommandOption("--refresh")]
         [Description("Bypass caches and retrieve fresh PTU and PAYG data.")]
         public bool Refresh { get; init; }
+
+        [CommandOption("--show-quota")]
+        [Description("Show documented PAYG Standard RPM and TPM limits for each quota tier.")]
+        public bool ShowQuota { get; init; }
+
+        [CommandOption("--quota-layout <LAYOUT>")]
+        [Description("Quota table layout: tier (default) or single.")]
+        public string QuotaLayout { get; init; } = "tier";
     }
 
     protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
@@ -105,6 +114,12 @@ public sealed class AvailabilityCommand(
             return 1;
         }
 
+        if (!TryParseQuotaLayout(settings.QuotaLayout, out var quotaLayout))
+        {
+            console.MarkupLineInterpolated($"[red]Error:[/] Unknown quota layout '{settings.QuotaLayout}'. Valid values: tier, single.");
+            return 1;
+        }
+
         var endpoint = ResolveOrPromptEndpoint(console, store, config);
         if (endpoint is null)
         {
@@ -157,7 +172,25 @@ public sealed class AvailabilityCommand(
             console.MarkupLineInterpolated($"[yellow]Warning:[/] PAYG Standard availability could not be retrieved from Microsoft Learn: {ex.Message}");
         }
 
+        PaygQuotaSnapshot? quotaSnapshot = null;
+        if (settings.ShowQuota)
+        {
+            try
+            {
+                quotaSnapshot = await quotaClient.GetAsync(settings.Refresh, cancellationToken);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+            {
+                console.MarkupLineInterpolated($"[yellow]Warning:[/] PAYG quota limits could not be retrieved from Microsoft Learn: {ex.Message}");
+            }
+        }
+
         console.Write(BuildTable(snapshot, paygSnapshot, regions, models, types));
+        if (quotaSnapshot is not null)
+        {
+            WriteQuotaTables(console, quotaSnapshot, models, types, quotaLayout);
+        }
+
         WriteStatusLegend(console);
         console.MarkupLineInterpolated($"[grey]PAYG geography tab: {tab}[/]");
 
@@ -174,6 +207,124 @@ public sealed class AvailabilityCommand(
         console.MarkupLine("[grey]Status legend:[/]");
         console.MarkupLine("[grey]PTU: yes = supported with positive capacity; no capacity = supported, capacity is 0; not supported = API explicitly says unsupported; unknown = missing/unusable data; not tracked = model/region absent from API. '-' capacity = not reported.[/]");
         console.MarkupLine("[grey]PAYG Standard: yes = at least one documented model version is available in the region; no = no documented version is listed as available; unknown = Microsoft Learn data could not be retrieved or parsed.[/]");
+    }
+
+    private static bool TryParseQuotaLayout(string value, out QuotaLayout layout)
+    {
+        switch (value.Trim().ToLowerInvariant())
+        {
+            case "tier":
+                layout = QuotaLayout.Tier;
+                return true;
+            case "single":
+                layout = QuotaLayout.Single;
+                return true;
+            default:
+                layout = default;
+                return false;
+        }
+    }
+
+    private static void WriteQuotaTables(
+        IAnsiConsole console,
+        PaygQuotaSnapshot snapshot,
+        List<string> models,
+        List<PtuType> types,
+        QuotaLayout layout)
+    {
+        console.WriteLine();
+        console.MarkupLine("[bold]PAYG Standard quota limits by tier[/]");
+
+        var matchingLimits = snapshot.Tiers
+            .SelectMany(tier => tier.Limits.Select(limit => (Tier: tier.Name, Limit: limit)))
+            .Where(item =>
+                models.Contains(item.Limit.Model, StringComparer.OrdinalIgnoreCase)
+                && types.Contains(item.Limit.Type))
+            .ToList();
+
+        if (layout is QuotaLayout.Single)
+        {
+            WriteSingleQuotaTable(console, matchingLimits);
+            return;
+        }
+
+        var wroteTier = false;
+        foreach (var tier in snapshot.Tiers)
+        {
+            var limits = matchingLimits
+                .Where(item => string.Equals(item.Tier, tier.Name, StringComparison.Ordinal))
+                .Select(item => item.Limit)
+                .ToList();
+            if (limits.Count == 0)
+            {
+                continue;
+            }
+
+            wroteTier = true;
+            console.MarkupLineInterpolated($"[bold]{tier.Name}[/]");
+
+            var table = new Table().Border(TableBorder.Rounded);
+            table.AddColumn("Model");
+            table.AddColumn("Deployment type");
+            table.AddColumn(new TableColumn("RPM").RightAligned());
+            table.AddColumn(new TableColumn("TPM").RightAligned());
+
+            foreach (var limit in limits)
+            {
+                table.AddRow(
+                    Markup.Escape(limit.Model),
+                    Markup.Escape($"{PtuTypes.DisplayName(limit.Type)} Standard"),
+                    Markup.Escape(limit.RequestsPerMinute),
+                    Markup.Escape(limit.TokensPerMinute));
+            }
+
+            console.Write(table);
+        }
+
+        if (!wroteTier)
+        {
+            console.MarkupLine("[yellow]No documented quota limits matched the selected models and deployment types.[/]");
+        }
+
+        console.MarkupLine("[grey]Quota limits are scoped by subscription and deployment type; they are not regional capacity values.[/]");
+    }
+
+    private static void WriteSingleQuotaTable(
+        IAnsiConsole console,
+        List<(string Tier, PaygQuotaLimit Limit)> limits)
+    {
+        if (limits.Count == 0)
+        {
+            console.MarkupLine("[yellow]No documented quota limits matched the selected models and deployment types.[/]");
+            console.MarkupLine("[grey]Quota limits are scoped by subscription and deployment type; they are not regional capacity values.[/]");
+            return;
+        }
+
+        var table = new Table().Border(TableBorder.Rounded);
+        table.AddColumn("Tier");
+        table.AddColumn("Model");
+        table.AddColumn("Deployment type");
+        table.AddColumn(new TableColumn("RPM").RightAligned());
+        table.AddColumn(new TableColumn("TPM").RightAligned());
+
+        foreach (var (tier, limit) in limits)
+        {
+            table.AddRow(
+                Markup.Escape(tier),
+                Markup.Escape(limit.Model),
+                Markup.Escape($"{PtuTypes.DisplayName(limit.Type)} Standard"),
+                Markup.Escape(limit.RequestsPerMinute),
+                Markup.Escape(limit.TokensPerMinute));
+        }
+
+        console.Write(table);
+        console.MarkupLine("[grey]Quota limits are scoped by subscription and deployment type; they are not regional capacity values.[/]");
+    }
+
+    private enum QuotaLayout
+    {
+        Tier,
+        Single,
     }
 
     /// <summary>

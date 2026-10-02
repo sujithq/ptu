@@ -93,8 +93,12 @@ ptu availability --refresh                              # bypass caches and requ
 ptu availability -r swedencentral,francecentral -m gpt-4.1
 ptu availability -r uksouth -m gpt-5.6-luna -t regional
 ptu availability --tab az-americas -r eastus -m gpt-4.1
+ptu availability -m gpt-4.1 -t datazone,global --show-quota
+ptu availability -m gpt-4.1 -t datazone,global --show-quota --quota-layout single
 ptu availability --preset eu -t datazone,global
 ```
+
+Pass `--show-quota` to append Microsoft Learn's documented PAYG Standard RPM and TPM limits for the selected models and deployment types, grouped into a separate table for each quota tier by default. Use `--quota-layout single` to combine all tiers into one table with a Tier column. Values are displayed as published, including rate windows such as `300 / 10s` and `-` when no TPM limit is listed. These limits are scoped by subscription and deployment type (and by data zone for Data Zone Standard); they are not regional capacity values and do not change the PAYG availability result.
 
 Exit codes: `0` success, `1` invalid input (unknown preset/type, empty region or model list), `2` API failure.
 
