@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.10.0"></a>
+## [0.10.0](https://www.github.com/sujithq/ptu/releases/tag/v0.10.0) (2026-10-02)
+
+### 🚀 Features
+
+* **availability:** add selectable PAYG quota table layouts ([793d6a9](https://www.github.com/sujithq/ptu/commit/793d6a98d4f2cba707d9b6ef2890f5a022990e90))
+
 <a name="0.9.0"></a>
 ## [0.9.0](https://www.github.com/sujithq/ptu/releases/tag/v0.9.0) (2026-10-01)
 
