@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="0.11.0"></a>
+## [0.11.0](https://www.github.com/sujithq/ptu/releases/tag/v0.11.0) (2026-10-02)
+
+### 🚀 Features
+
+* **availability:** show PAYG Batch availability per deployment type ([e62451b](https://www.github.com/sujithq/ptu/commit/e62451bf881f9a51ad0bf0fa60cfe507b5a61b8b))
+* **availability): compact statuses and align quota tablesfeat(availability:** compact statuses and align quota tables ([65b7fe4](https://www.github.com/sujithq/ptu/commit/65b7fe4ec1064838d848be44c9482f5fdc1b4830))
+
 <a name="0.10.0"></a>
 ## [0.10.0](https://www.github.com/sujithq/ptu/releases/tag/v0.10.0) (2026-10-02)
 
