@@ -207,6 +207,7 @@ public sealed class AvailabilityCommand(
         console.MarkupLine("[grey]Status legend:[/]");
         console.MarkupLine("[grey]PTU: yes = supported with positive capacity; no capacity = supported, capacity is 0; not supported = API explicitly says unsupported; unknown = missing/unusable data; not tracked = model/region absent from API. '-' capacity = not reported.[/]");
         console.MarkupLine("[grey]PAYG Standard: yes = at least one documented model version is available in the region; no = no documented version is listed as available; unknown = Microsoft Learn data could not be retrieved or parsed.[/]");
+        console.MarkupLine("[grey]PAYG Batch: same meaning as PAYG Standard, for Batch deployments; unknown also covers a missing or restructured Batch section. Microsoft Learn documents Batch for Global and Data zone only, so no Batch column is shown for Regional.[/]");
     }
 
     private static bool TryParseQuotaLayout(string value, out QuotaLayout layout)
@@ -372,6 +373,10 @@ public sealed class AvailabilityCommand(
             table.AddColumn(new TableColumn($"{PtuTypes.DisplayName(type)} PTU").Centered());
             table.AddColumn(new TableColumn($"{PtuTypes.DisplayName(type)} capacity").RightAligned());
             table.AddColumn(new TableColumn($"PAYG {PtuTypes.DisplayName(type)} Standard").Centered());
+            if (PaygDataZoneSnapshot.SupportsBatch(type))
+            {
+                table.AddColumn(new TableColumn($"PAYG {PtuTypes.DisplayName(type)} Batch").Centered());
+            }
         }
 
         foreach (var model in models)
@@ -409,6 +414,16 @@ public sealed class AvailabilityCommand(
                     cells.Add(paygSnapshot is null
                         ? "[yellow]unknown[/]"
                         : paygSnapshot.IsAvailable(type, model, region) ? "[green]yes[/]" : "[red]no[/]");
+
+                    if (PaygDataZoneSnapshot.SupportsBatch(type))
+                    {
+                        cells.Add(paygSnapshot?.GetBatchAvailability(type, model, region) switch
+                        {
+                            true => "[green]yes[/]",
+                            false => "[red]no[/]",
+                            null => "[yellow]unknown[/]",
+                        });
+                    }
                 }
 
                 table.AddRow(cells.ToArray());

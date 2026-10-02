@@ -81,8 +81,57 @@ public sealed class HttpPaygDataZoneClient(HttpClient http) : IPaygDataZoneClien
             modelsByType[type] = models;
         }
 
-        return new PaygDataZoneSnapshot { ModelsByType = modelsByType };
+        return new PaygDataZoneSnapshot
+        {
+            ModelsByType = modelsByType,
+            BatchModelsByType = ParseBatchSections(document, normalizedTab),
+        };
     }
+
+    /// <summary>
+    /// Parses the Batch sections of the same Microsoft Learn page. Batch data is supplementary, so a
+    /// missing or restructured section leaves the deployment type out of the result instead of failing
+    /// the whole snapshot. A type that is absent from the result is reported as unknown, never as
+    /// unavailable.
+    /// </summary>
+    private static Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>> ParseBatchSections(IDocument document, string normalizedTab)
+    {
+        var batchModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>();
+        foreach (var (type, sectionId, heading) in BatchSections)
+        {
+            var section = FindAzureOpenAiSection(document, sectionId, heading);
+            if (section is null)
+            {
+                continue;
+            }
+
+            var tabPanels = section.QuerySelectorAll("[role=tabpanel][data-tab]");
+            var selectedPanel = tabPanels.FirstOrDefault(panel =>
+                string.Equals(panel.GetAttribute("data-tab"), normalizedTab, StringComparison.OrdinalIgnoreCase));
+            if (tabPanels.Length > 0 && selectedPanel is null)
+            {
+                continue;
+            }
+
+            var availabilityContent = selectedPanel ?? section;
+            var models = ParseTables(availabilityContent.QuerySelectorAll("table"));
+            if (models.Count == 0
+                && !availabilityContent.TextContent.Contains("Not available", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            batchModelsByType[type] = models;
+        }
+
+        return batchModelsByType;
+    }
+
+    private static readonly (PtuType Type, string SectionId, string Heading)[] BatchSections =
+    [
+        (PtuType.Global, "global-batch", "Global Batch"),
+        (PtuType.DataZone, "data-zone-batch", "Data Zone Batch"),
+    ];
 
     private static readonly (PtuType Type, string SectionId, string Heading)[] StandardSections =
     [

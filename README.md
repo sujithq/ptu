@@ -83,9 +83,11 @@ PTU status is shown separately from the reported capacity:
 
 Regional, Data Zone, and Global are separate deployment types; support and capacity in one do not imply availability in another.
 
-The availability output prints a status legend below the table. PTU `not tracked` means the API omitted the model/region; a `-` capacity means no capacity value was reported. PAYG `no` means Microsoft Learn does not list a documented model version as available for that region, while `unknown` means the Learn data could not be retrieved or parsed.
+The availability output prints a status legend below the table. PTU `not tracked` means the API omitted the model/region; a `-` capacity means no capacity value was reported. PAYG `no` means Microsoft Learn does not list a documented model version as available for that region, while `unknown` means the Learn data could not be retrieved or parsed. The `PAYG <type> Batch` columns use the same meaning for Batch deployments.
 
 PAYG Global Standard, Data Zone Standard, and Regional Standard availability is retrieved on each run from Microsoft's public [Foundry model region availability](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=standard&tabs=az-europe#global-standard) page. The Learn geography defaults to Europe (`az-europe`) and can be selected with `--tab az-americas`, `--tab az-europe`, `--tab az-apac`, or `--tab az-mea`; an explicit flag overrides the preset. Because CLI model names don't select a version, `yes` means at least one documented Azure OpenAI model version supports that PAYG Standard deployment in that region. If the public page cannot be retrieved or parsed, PTU results still render and PAYG values are shown as `unknown`.
+
+The same page also documents [Batch availability](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=batch&tabs=az-europe#global-batch), so a `PAYG <type> Batch` column is added next to each PAYG Standard column, read with the same geography tab and the same `yes`/`no`/`unknown` meaning. A missing or restructured Batch section only affects the Batch columns, which then show `unknown` rather than `no`. Microsoft Learn publishes Global Batch and Data Zone Batch only, so no Batch column is shown for `--type regional`.
 
 ```pwsh
 ptu availability                                        # active preset (factory: swedencentral,francecentral × gpt-5.4,gpt-5.4-mini,gpt-5-mini,gpt-4.1)

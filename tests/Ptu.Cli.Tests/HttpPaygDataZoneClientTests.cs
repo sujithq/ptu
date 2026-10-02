@@ -46,8 +46,53 @@ public class HttpPaygDataZoneClientTests
     }
 
     [Fact]
-    public void Parse_WithoutExpectedStandardSection_Throws()
+    public void Parse_ReadsBatchSectionsForGlobalAndDataZoneOnly()
     {
+        var snapshot = HttpPaygDataZoneClient.Parse(StandardAndBatchHtml, PaygDataZoneTabs.Europe);
+
+        Assert.True(snapshot.GetBatchAvailability(PtuType.Global, "GPT-4.1", "swedencentral"));
+        Assert.False(snapshot.GetBatchAvailability(PtuType.Global, "gpt-4.1", "francecentral"));
+        Assert.True(snapshot.GetBatchAvailability(PtuType.DataZone, "gpt-4.1", "FranceCentral"));
+        Assert.Null(snapshot.GetBatchAvailability(PtuType.Regional, "gpt-4.1", "francecentral"));
+        Assert.False(snapshot.BatchModelsByType.ContainsKey(PtuType.Regional));
+    }
+
+    [Fact]
+    public void Parse_WithBatchTabPanels_ReadsOnlySelectedTab()
+    {
+        var snapshot = HttpPaygDataZoneClient.Parse(StandardAndBatchHtml, PaygDataZoneTabs.Americas);
+
+        Assert.True(snapshot.GetBatchAvailability(PtuType.DataZone, "gpt-4.1", "eastus"));
+        Assert.False(snapshot.GetBatchAvailability(PtuType.DataZone, "gpt-4.1", "francecentral"));
+    }
+
+    [Fact]
+    public void Parse_WithoutBatchSections_KeepsStandardDataAndReportsUnknownBatch()
+    {
+        const string html = """
+            <h2 id="global-standard">Global Standard</h2>
+            <h4>Availability for Azure OpenAI in Foundry Models</h4>
+            <div><table><thead><tr><th>Model</th><th>Version</th><th>swedencentral</th></tr></thead>
+            <tbody><tr><td>gpt-4.1</td><td>1</td><td>&#x2705;</td></tr></tbody></table></div>
+            <h2 id="data-zone-standard">Data Zone Standard</h2>
+            <h4>Availability for Azure OpenAI in Foundry Models</h4>
+            <div><table><thead><tr><th>Model</th><th>Version</th><th>swedencentral</th></tr></thead>
+            <tbody><tr><td>gpt-4.1</td><td>1</td><td>&#x2705;</td></tr></tbody></table></div>
+            <h2 id="standardregional">Standard/Regional</h2>
+            <h4>Availability for Azure OpenAI in Foundry Models</h4>
+            <div><table><thead><tr><th>Model</th><th>Version</th><th>francecentral</th></tr></thead>
+            <tbody><tr><td>gpt-4.1</td><td>1</td><td>&#x2705;</td></tr></tbody></table></div>
+            """;
+
+        var snapshot = HttpPaygDataZoneClient.Parse(html);
+
+        Assert.True(snapshot.IsAvailable(PtuType.Global, "gpt-4.1", "swedencentral"));
+        Assert.Empty(snapshot.BatchModelsByType);
+        Assert.Null(snapshot.GetBatchAvailability(PtuType.Global, "gpt-4.1", "swedencentral"));
+    }
+
+    [Fact]
+    public void Parse_WithoutExpectedStandardSection_Throws()    {
         var exception = Assert.Throws<InvalidOperationException>(() =>
             HttpPaygDataZoneClient.Parse("<html><body><h2>Unavailable</h2></body></html>"));
 
@@ -112,4 +157,35 @@ public class HttpPaygDataZoneClientTests
         Assert.Equal(TimeSpan.Zero, request.Headers.CacheControl?.MaxAge);
         Assert.Contains("no-cache", request.Headers.GetValues("Pragma"));
     }
+
+    private const string StandardAndBatchHtml = """
+        <h2 id="global-standard">Global Standard</h2>
+        <h4>Availability for Azure OpenAI in Foundry Models</h4>
+        <div><table><thead><tr><th>Model</th><th>Version</th><th>swedencentral</th></tr></thead>
+        <tbody><tr><td>gpt-4.1</td><td>1</td><td>&#x2705;</td></tr></tbody></table></div>
+        <h2 id="data-zone-standard">Data Zone Standard</h2>
+        <h4>Availability for Azure OpenAI in Foundry Models</h4>
+        <div><table><thead><tr><th>Model</th><th>Version</th><th>swedencentral</th></tr></thead>
+        <tbody><tr><td>gpt-4.1</td><td>1</td><td>&#x2705;</td></tr></tbody></table></div>
+        <h2 id="standardregional">Standard/Regional</h2>
+        <h4>Availability for Azure OpenAI in Foundry Models</h4>
+        <div><table><thead><tr><th>Model</th><th>Version</th><th>francecentral</th></tr></thead>
+        <tbody><tr><td>gpt-4.1</td><td>1</td><td>&#x2705;</td></tr></tbody></table></div>
+        <h2 id="global-batch">Global Batch</h2>
+        <h4>Availability for Azure OpenAI in Foundry Models</h4>
+        <div><table><thead><tr><th>Model</th><th>Version</th><th>francecentral</th><th>swedencentral</th></tr></thead>
+        <tbody><tr><td>gpt-4.1</td><td>1</td><td>-</td><td>&#x2705;</td></tr></tbody></table></div>
+        <h2 id="data-zone-batch">Data Zone Batch</h2>
+        <h4>Availability for Azure OpenAI in Foundry Models</h4>
+        <div class="tabGroup">
+            <section role="tabpanel" data-tab="az-americas">
+                <table><thead><tr><th>Model</th><th>Version</th><th>eastus</th></tr></thead>
+                <tbody><tr><td>gpt-4.1</td><td>1</td><td>&#x2705;</td></tr></tbody></table>
+            </section>
+            <section role="tabpanel" data-tab="az-europe">
+                <table><thead><tr><th>Model</th><th>Version</th><th>francecentral</th></tr></thead>
+                <tbody><tr><td>gpt-4.1</td><td>1</td><td>&#x2705;</td></tr></tbody></table>
+            </section>
+        </div>
+        """;
 }

@@ -262,8 +262,8 @@ public class AvailabilityCommandTests
         Assert.Contains("unknown = Microsoft Learn data could not be retrieved or parsed", result.Output);
         Assert.DoesNotContain("PAYG Regional Standard", result.Output);
         Assert.DoesNotContain("PAYG Global Standard", result.Output);
-        Assert.DoesNotContain("Regional", result.Output);
-        Assert.DoesNotContain("Global", result.Output);
+        Assert.DoesNotContain("Regional", TableOutput(result.Output));
+        Assert.DoesNotContain("Global", TableOutput(result.Output));
     }
 
     [Fact]
@@ -275,7 +275,8 @@ public class AvailabilityCommandTests
         var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal(2, CountOccurrences(TableOutput(result.Output), "yes"));
+        Assert.Contains("PAYG Data Zone Batch", result.Output);
+        Assert.Equal(3, CountOccurrences(TableOutput(result.Output), "yes"));
         Assert.Equal(1, paygClient.CallCount);
     }
 
@@ -298,7 +299,80 @@ public class AvailabilityCommandTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal(1, CountOccurrences(TableOutput(result.Output), "yes"));
+        Assert.Equal(1, CountOccurrences(TableOutput(result.Output), "unknown"));
+    }
+
+    [Fact]
+    public void Availability_WhenPaygBatchSectionIsMissing_ShowsUnknownInBatchColumn()
+    {
+        var paygClient = new FakePaygDataZoneClient
+        {
+            Snapshot = new()
+            {
+                ModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>
+                {
+                    [PtuType.DataZone] = [FakePaygDataZoneClient.Model("gpt-4.1", "2025-04-14", "swedencentral")],
+                },
+            },
+        };
+        var (app, _, _) = TestHost.Create(paygClient);
+
+        var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(2, CountOccurrences(TableOutput(result.Output), "yes"));
+        Assert.Equal(1, CountOccurrences(TableOutput(result.Output), "unknown"));
+    }
+
+    [Fact]
+    public void Availability_WhenPaygBatchIsNotDocumented_ShowsNoInBatchColumn()
+    {
+        var paygClient = new FakePaygDataZoneClient
+        {
+            Snapshot = new()
+            {
+                ModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>
+                {
+                    [PtuType.DataZone] = [FakePaygDataZoneClient.Model("gpt-4.1", "2025-04-14", "swedencentral")],
+                },
+                BatchModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>
+                {
+                    [PtuType.DataZone] = [FakePaygDataZoneClient.Model("gpt-4.1", "2025-04-14", "francecentral")],
+                },
+            },
+        };
+        var (app, _, _) = TestHost.Create(paygClient);
+
+        var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("PAYG Data Zone Batch", result.Output);
         Assert.Equal(1, CountOccurrences(TableOutput(result.Output), "no"));
+    }
+
+    [Fact]
+    public void Availability_WithRegionalType_OmitsBatchColumn()
+    {
+        var (app, _, _) = TestHost.Create(new FakePaygDataZoneClient());
+
+        var result = app.Run("availability", "-r", "francecentral", "-m", "gpt-4.1", "-t", "regional");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.DoesNotContain("PAYG Regional Batch", result.Output);
+        Assert.DoesNotContain("Batch", TableOutput(result.Output));
+    }
+
+    [Fact]
+    public void Availability_WithGlobalAndDataZoneTypes_ShowsBatchColumnForBoth()
+    {
+        var (app, _, _) = TestHost.Create(new FakePaygDataZoneClient());
+
+        var result = app.Run("availability", "-r", "swedencentral", "-m", "gpt-4.1", "-t", "datazone,global");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("PAYG Data Zone Batch", result.Output);
+        Assert.Contains("PAYG Global Batch", result.Output);
+        Assert.Contains("Microsoft Learn documents Batch for Global and Data zone only", result.Output);
     }
 
     [Fact]

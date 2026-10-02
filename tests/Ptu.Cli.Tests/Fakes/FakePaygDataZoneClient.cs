@@ -44,6 +44,17 @@ public sealed class FakePaygDataZoneClient : IPaygDataZoneClient
                 Model("gpt-4.1", "2025-04-14", "francecentral"),
             ],
         },
+        BatchModelsByType = new Dictionary<PtuType, IReadOnlyList<PaygDataZoneModel>>
+        {
+            [PtuType.DataZone] =
+            [
+                Model("gpt-4.1", "2025-04-14", "francecentral", "swedencentral"),
+            ],
+            [PtuType.Global] =
+            [
+                Model("gpt-4.1", "2025-04-14", "swedencentral"),
+            ],
+        },
     };
 
     public static PaygDataZoneModel Model(string name, string version, params string[] regions) => new()
