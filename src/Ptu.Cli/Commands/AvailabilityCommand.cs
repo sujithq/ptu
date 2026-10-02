@@ -5,6 +5,7 @@ using Ptu.Cli.Availability;
 using Ptu.Cli.Configuration;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Spectre.Console.Rendering;
 
 namespace Ptu.Cli.Commands;
 
@@ -185,10 +186,25 @@ public sealed class AvailabilityCommand(
             }
         }
 
-        console.Write(BuildTable(snapshot, paygSnapshot, regions, models, types));
-        if (quotaSnapshot is not null)
+        var availabilityTable = BuildTable(snapshot, paygSnapshot, regions, models, types);
+        var availabilityOutput = new Rows(
+            new Markup("[bold]Model availability[/]"),
+            availabilityTable);
+        if (quotaSnapshot is null)
         {
-            WriteQuotaTables(console, quotaSnapshot, models, types, quotaLayout);
+            console.Write(availabilityOutput);
+        }
+        else
+        {
+            console.Write(new Columns(
+            [
+                availabilityOutput,
+                BuildQuotaTables(quotaSnapshot, models, types, quotaLayout),
+            ])
+            {
+                Expand = false,
+                Padding = new Padding(0, 0, 2, 0),
+            });
         }
 
         WriteStatusLegend(console);
@@ -205,7 +221,7 @@ public sealed class AvailabilityCommand(
     private static void WriteStatusLegend(IAnsiConsole console)
     {
         console.MarkupLine("[grey]Status legend:[/]");
-        console.MarkupLine("[grey]PTU: yes = supported with positive capacity; no capacity = supported, capacity is 0; not supported = API explicitly says unsupported; unknown = missing/unusable data; not tracked = model/region absent from API. '-' capacity = not reported.[/]");
+        console.MarkupLine("[grey]PTU: OK = supported with positive capacity; NC = supported, capacity is 0; NS = API explicitly says unsupported; ? = missing/unusable data; NT = model/region absent from API. '-' capacity = not reported.[/]");
         console.MarkupLine("[grey]PAYG Standard: yes = at least one documented model version is available in the region; no = no documented version is listed as available; unknown = Microsoft Learn data could not be retrieved or parsed.[/]");
         console.MarkupLine("[grey]PAYG Batch: same meaning as PAYG Standard, for Batch deployments; unknown also covers a missing or restructured Batch section. Microsoft Learn documents Batch for Global and Data zone only, so no Batch column is shown for Regional.[/]");
     }
@@ -226,15 +242,16 @@ public sealed class AvailabilityCommand(
         }
     }
 
-    private static void WriteQuotaTables(
-        IAnsiConsole console,
+    private static IRenderable BuildQuotaTables(
         PaygQuotaSnapshot snapshot,
         List<string> models,
         List<PtuType> types,
         QuotaLayout layout)
     {
-        console.WriteLine();
-        console.MarkupLine("[bold]PAYG Standard quota limits by tier[/]");
+        var renderables = new List<IRenderable>
+        {
+            new Markup("[bold]PAYG Standard quota limits by tier[/]"),
+        };
 
         var matchingLimits = snapshot.Tiers
             .SelectMany(tier => tier.Limits.Select(limit => (Tier: tier.Name, Limit: limit)))
@@ -245,62 +262,63 @@ public sealed class AvailabilityCommand(
 
         if (layout is QuotaLayout.Single)
         {
-            WriteSingleQuotaTable(console, matchingLimits);
-            return;
-        }
-
-        var wroteTier = false;
-        foreach (var tier in snapshot.Tiers)
-        {
-            var limits = matchingLimits
-                .Where(item => string.Equals(item.Tier, tier.Name, StringComparison.Ordinal))
-                .Select(item => item.Limit)
-                .ToList();
-            if (limits.Count == 0)
+            if (matchingLimits.Count == 0)
             {
-                continue;
+                renderables.Add(new Markup("[yellow]No documented quota limits matched the selected models and deployment types.[/]"));
+            }
+            else
+            {
+                renderables.Add(BuildSingleQuotaTable(matchingLimits));
+            }
+        }
+        else
+        {
+            var wroteTier = false;
+            foreach (var tier in snapshot.Tiers)
+            {
+                var limits = matchingLimits
+                    .Where(item => string.Equals(item.Tier, tier.Name, StringComparison.Ordinal))
+                    .Select(item => item.Limit)
+                    .ToList();
+                if (limits.Count == 0)
+                {
+                    continue;
+                }
+
+                wroteTier = true;
+                renderables.Add(new Markup($"[bold]{Markup.Escape(tier.Name)}[/]"));
+
+                var table = new Table().Border(TableBorder.Rounded);
+                table.AddColumn("Model");
+                table.AddColumn("Deployment type");
+                table.AddColumn(new TableColumn("RPM").RightAligned());
+                table.AddColumn(new TableColumn("TPM").RightAligned());
+
+                foreach (var limit in limits)
+                {
+                    table.AddRow(
+                        Markup.Escape(limit.Model),
+                        Markup.Escape($"{PtuTypes.DisplayName(limit.Type)} Standard"),
+                        Markup.Escape(limit.RequestsPerMinute),
+                        Markup.Escape(limit.TokensPerMinute));
+                }
+
+                renderables.Add(table);
             }
 
-            wroteTier = true;
-            console.MarkupLineInterpolated($"[bold]{tier.Name}[/]");
-
-            var table = new Table().Border(TableBorder.Rounded);
-            table.AddColumn("Model");
-            table.AddColumn("Deployment type");
-            table.AddColumn(new TableColumn("RPM").RightAligned());
-            table.AddColumn(new TableColumn("TPM").RightAligned());
-
-            foreach (var limit in limits)
+            if (!wroteTier)
             {
-                table.AddRow(
-                    Markup.Escape(limit.Model),
-                    Markup.Escape($"{PtuTypes.DisplayName(limit.Type)} Standard"),
-                    Markup.Escape(limit.RequestsPerMinute),
-                    Markup.Escape(limit.TokensPerMinute));
+                renderables.Add(new Markup("[yellow]No documented quota limits matched the selected models and deployment types.[/]"));
             }
-
-            console.Write(table);
         }
 
-        if (!wroteTier)
-        {
-            console.MarkupLine("[yellow]No documented quota limits matched the selected models and deployment types.[/]");
-        }
-
-        console.MarkupLine("[grey]Quota limits are scoped by subscription and deployment type; they are not regional capacity values.[/]");
+        renderables.Add(new Markup("[grey]Quota limits are scoped by subscription and deployment type; they are not regional capacity values.[/]"));
+        return new Rows(renderables);
     }
 
-    private static void WriteSingleQuotaTable(
-        IAnsiConsole console,
+    private static Table BuildSingleQuotaTable(
         List<(string Tier, PaygQuotaLimit Limit)> limits)
     {
-        if (limits.Count == 0)
-        {
-            console.MarkupLine("[yellow]No documented quota limits matched the selected models and deployment types.[/]");
-            console.MarkupLine("[grey]Quota limits are scoped by subscription and deployment type; they are not regional capacity values.[/]");
-            return;
-        }
-
         var table = new Table().Border(TableBorder.Rounded);
         table.AddColumn("Tier");
         table.AddColumn("Model");
@@ -318,8 +336,7 @@ public sealed class AvailabilityCommand(
                 Markup.Escape(limit.TokensPerMinute));
         }
 
-        console.Write(table);
-        console.MarkupLine("[grey]Quota limits are scoped by subscription and deployment type; they are not regional capacity values.[/]");
+        return table;
     }
 
     private enum QuotaLayout
@@ -366,18 +383,26 @@ public sealed class AvailabilityCommand(
         List<PtuType> types)
     {
         var table = new Table().Border(TableBorder.Rounded);
-        table.AddColumn("Model");
-        table.AddColumn("Region");
+        var compactGroups = types.Count > 1;
+        table.AddColumn(new TableColumn("Model") { Padding = new Padding(0) });
+        table.AddColumn(new TableColumn("Region") { Padding = new Padding(0) });
         foreach (var type in types)
         {
-            table.AddColumn(new TableColumn($"{PtuTypes.DisplayName(type)} PTU").Centered());
-            table.AddColumn(new TableColumn($"{PtuTypes.DisplayName(type)} capacity").RightAligned());
-            table.AddColumn(new TableColumn($"PAYG {PtuTypes.DisplayName(type)} Standard").Centered());
-            if (PaygDataZoneSnapshot.SupportsBatch(type))
+            table.AddColumn(new TableColumn(PtuTypes.DisplayName(type))
             {
-                table.AddColumn(new TableColumn($"PAYG {PtuTypes.DisplayName(type)} Batch").Centered());
-            }
+                Alignment = Justify.Center,
+                Padding = new Padding(0),
+                Width = GetDeploymentWidth(type, compactGroups),
+            });
         }
+
+        var subheaderCells = new List<IRenderable>
+        {
+            new Text(string.Empty),
+            new Text(string.Empty),
+        };
+        subheaderCells.AddRange(types.Select(type => BuildDeploymentSubheader(type, compactGroups)));
+        table.AddRow(subheaderCells);
 
         foreach (var model in models)
         {
@@ -385,45 +410,50 @@ public sealed class AvailabilityCommand(
             foreach (var region in regions)
             {
                 var modelData = snapshot.FindRegion(region)?.FindModel(model);
-                var cells = new List<string>
+                var cells = new List<IRenderable>
                 {
-                    firstRowOfGroup ? Markup.Escape(model) : string.Empty,
-                    Markup.Escape(region),
+                    new Text(firstRowOfGroup ? model : string.Empty),
+                    new Text(region),
                 };
 
                 foreach (var type in types)
                 {
+                    string ptuStatus;
+                    string capacity;
                     if (modelData is null)
                     {
-                        cells.Add("[grey]not tracked[/]");
-                        cells.Add("[grey]-[/]");
+                        ptuStatus = "[grey]NT[/]";
+                        capacity = "[grey]-[/]";
                     }
                     else
                     {
                         var offer = modelData.Offers[type];
-                        cells.Add((offer.Available, offer.Capacity) switch
+                        ptuStatus = (offer.Available, offer.Capacity) switch
                         {
-                            (false, _) => "[grey]not supported[/]",
-                            (true, 0) => "[yellow]no capacity[/]",
-                            (true, > 0) => "[green]yes[/]",
-                            _ => "[yellow]unknown[/]",
-                        });
-                        cells.Add(offer.Capacity?.ToString(CultureInfo.InvariantCulture) ?? "-");
+                            (false, _) => "[grey]NS[/]",
+                            (true, 0) => "[yellow]NC[/]",
+                            (true, > 0) => "[green]OK[/]",
+                            _ => "[yellow]?[/]",
+                        };
+                        capacity = offer.Capacity?.ToString(CultureInfo.InvariantCulture) ?? "-";
                     }
 
-                    cells.Add(paygSnapshot is null
+                    var standard = paygSnapshot is null
                         ? "[yellow]unknown[/]"
-                        : paygSnapshot.IsAvailable(type, model, region) ? "[green]yes[/]" : "[red]no[/]");
+                        : paygSnapshot.IsAvailable(type, model, region) ? "[green]yes[/]" : "[red]no[/]";
 
+                    string? batch = null;
                     if (PaygDataZoneSnapshot.SupportsBatch(type))
                     {
-                        cells.Add(paygSnapshot?.GetBatchAvailability(type, model, region) switch
+                        batch = paygSnapshot?.GetBatchAvailability(type, model, region) switch
                         {
                             true => "[green]yes[/]",
                             false => "[red]no[/]",
                             null => "[yellow]unknown[/]",
-                        });
+                        };
                     }
+
+                    cells.Add(BuildDeploymentGrid(type, ptuStatus, capacity, standard, batch, compactGroups));
                 }
 
                 table.AddRow(cells.ToArray());
@@ -433,4 +463,85 @@ public sealed class AvailabilityCommand(
 
         return table;
     }
+
+    private static Grid BuildDeploymentSubheader(PtuType type, bool compact) =>
+        BuildDeploymentGrid(
+            type,
+            "[bold]PTU[/]",
+            compact ? "[bold]Cap[/]" : "[bold]Capacity[/]",
+            "[bold]PAYG[/]",
+            PaygDataZoneSnapshot.SupportsBatch(type)
+                ? compact ? "[bold]Bat[/]" : "[bold]Batch[/]"
+                : null,
+            compact);
+
+    private static Grid BuildDeploymentGrid(
+        PtuType type,
+        string ptu,
+        string capacity,
+        string standard,
+        string? batch,
+        bool compact)
+    {
+        var supportsBatch = PaygDataZoneSnapshot.SupportsBatch(type);
+        var grid = new Grid();
+        grid.AddColumn(new GridColumn
+        {
+            Width = 3,
+            NoWrap = true,
+            Padding = new Padding(0),
+            Alignment = Justify.Center,
+        });
+        grid.AddColumn(SeparatorColumn());
+        grid.AddColumn(new GridColumn
+        {
+            Width = compact ? 5 : 8,
+            NoWrap = true,
+            Padding = new Padding(0),
+            Alignment = Justify.Right,
+        });
+        grid.AddColumn(SeparatorColumn());
+        grid.AddColumn(new GridColumn
+        {
+            Width = 4,
+            NoWrap = true,
+            Padding = new Padding(0),
+            Alignment = Justify.Center,
+        });
+
+        if (supportsBatch)
+        {
+            grid.AddColumn(SeparatorColumn());
+            grid.AddColumn(new GridColumn
+            {
+                Width = compact ? 3 : 7,
+                NoWrap = true,
+                Padding = new Padding(0),
+                Alignment = Justify.Center,
+            });
+        }
+
+        const string separator = "[grey]│[/]";
+        grid.AddRow(batch is null
+            ? [ptu, separator, capacity, separator, standard]
+            : [ptu, separator, capacity, separator, standard, separator, batch]);
+        return grid;
+    }
+
+    private static GridColumn SeparatorColumn() => new()
+    {
+        Width = 1,
+        NoWrap = true,
+        Padding = new Padding(0),
+        Alignment = Justify.Center,
+    };
+
+    private static int GetDeploymentWidth(PtuType type, bool compact) =>
+        (compact, PaygDataZoneSnapshot.SupportsBatch(type)) switch
+        {
+            (true, true) => 18,
+            (true, false) => 14,
+            (false, true) => 25,
+            (false, false) => 17,
+        };
 }

@@ -67,7 +67,7 @@ If the tool is not installed globally yet, use `dotnet tool install --global suj
 
 ## PTU availability
 
-`ptu availability` shows provisioned-throughput (PTU) and pay-as-you-go (PAYG) Standard availability grouped by model (one group per model, one row per region). On the very first run it asks for the availability API endpoint and stores it in the config file; the endpoint returns the full PTU dataset, so filtering happens client-side. Data Zone PTU and PAYG Data Zone Standard are shown by default. `--type regional` or `--type global` adds the matching PTU and PAYG Standard columns; provide a comma-separated list to show multiple deployment types. Pass `--refresh` to bypass caches for both data sources and request fresh snapshots.
+`ptu availability` shows provisioned-throughput (PTU) and pay-as-you-go (PAYG) Standard availability grouped by model (one group per model, one row per region). The table groups the `PTU`, `Capacity`, `PAYG`, and, where supported, `Batch` subcolumns beneath each deployment type, with vertical separators between them; compact `Cap` and `Bat` labels are used when multiple types are selected. On the very first run it asks for the availability API endpoint and stores it in the config file; the endpoint returns the full PTU dataset, so filtering happens client-side. Data Zone PTU and PAYG Data Zone Standard are shown by default. `--type regional` or `--type global` adds the matching PTU and PAYG Standard group; provide a comma-separated list to show multiple deployment types. Pass `--refresh` to bypass caches for both data sources and request fresh snapshots.
 
 If the latest API refresh failed but its response includes the last successful dataset, `ptu` renders that cached data with a warning and its generation timestamp. A failed response without cached regions remains an API failure (exit code `2`).
 
@@ -75,15 +75,15 @@ PTU status is shown separately from the reported capacity:
 
 | Status | Meaning |
 |---|---|
-| `yes` | The API reports support for this deployment type and positive capacity. |
-| `no capacity` | The deployment type is supported, but its reported capacity is zero. |
-| `not supported` | The API reports that this model/region does not support the deployment type. |
-| `unknown` | Support or capacity information is missing or unusable. |
-| `not tracked` | The API did not return the requested model/region. |
+| `OK` | The API reports support for this deployment type and positive capacity. |
+| `NC` | The deployment type is supported, but its reported capacity is zero. |
+| `NS` | The API reports that this model/region does not support the deployment type. |
+| `?` | Support or capacity information is missing or unusable. |
+| `NT` | The API did not return the requested model/region. |
 
 Regional, Data Zone, and Global are separate deployment types; support and capacity in one do not imply availability in another.
 
-The availability output prints a status legend below the table. PTU `not tracked` means the API omitted the model/region; a `-` capacity means no capacity value was reported. PAYG `no` means Microsoft Learn does not list a documented model version as available for that region, while `unknown` means the Learn data could not be retrieved or parsed. The `PAYG <type> Batch` columns use the same meaning for Batch deployments.
+The availability output prints a status legend below the table. PTU `NT` means the API omitted the model/region; a `-` capacity means no capacity value was reported. PAYG `no` means Microsoft Learn does not list a documented model version as available for that region, while `unknown` means the Learn data could not be retrieved or parsed. The `PAYG <type> Batch` columns use the same meaning for Batch deployments.
 
 PAYG Global Standard, Data Zone Standard, and Regional Standard availability is retrieved on each run from Microsoft's public [Foundry model region availability](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=standard&tabs=az-europe#global-standard) page. The Learn geography defaults to Europe (`az-europe`) and can be selected with `--tab az-americas`, `--tab az-europe`, `--tab az-apac`, or `--tab az-mea`; an explicit flag overrides the preset. Because CLI model names don't select a version, `yes` means at least one documented Azure OpenAI model version supports that PAYG Standard deployment in that region. If the public page cannot be retrieved or parsed, PTU results still render and PAYG values are shown as `unknown`.
 
@@ -100,7 +100,7 @@ ptu availability -m gpt-4.1 -t datazone,global --show-quota --quota-layout singl
 ptu availability --preset eu -t datazone,global
 ```
 
-Pass `--show-quota` to append Microsoft Learn's documented PAYG Standard RPM and TPM limits for the selected models and deployment types, grouped into a separate table for each quota tier by default. Use `--quota-layout single` to combine all tiers into one table with a Tier column. Values are displayed as published, including rate windows such as `300 / 10s` and `-` when no TPM limit is listed. These limits are scoped by subscription and deployment type (and by data zone for Data Zone Standard); they are not regional capacity values and do not change the PAYG availability result.
+Pass `--show-quota` to show Microsoft Learn's documented PAYG Standard RPM and TPM limits to the right of the availability table when the terminal is wide enough; Spectre.Console automatically stacks the quota output below it on narrow terminals. Limits are grouped into a separate table for each quota tier by default. Use `--quota-layout single` to combine all tiers into one table with a Tier column. Values are displayed as published, including rate windows such as `300 / 10s` and `-` when no TPM limit is listed. These limits are scoped by subscription and deployment type (and by data zone for Data Zone Standard); they are not regional capacity values and do not change the PAYG availability result.
 
 Exit codes: `0` success, `1` invalid input (unknown preset/type, empty region or model list), `2` API failure.
 

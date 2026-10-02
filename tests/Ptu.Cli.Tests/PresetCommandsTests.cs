@@ -124,14 +124,16 @@ public class PresetCommandsTests
         var presetResult = presetApp.Run("availability", "-r", "francecentral", "-m", "gpt-4.1");
         var (overrideApp, _, _) = TestHost.Create();
         var overrideResult = overrideApp.Run("availability", "-r", "francecentral", "-m", "gpt-4.1", "-t", "datazone");
+        var presetTable = presetResult.Output.Split("Status legend:", StringSplitOptions.None)[0];
+        var overrideTable = overrideResult.Output.Split("Status legend:", StringSplitOptions.None)[0];
 
         Assert.Equal(0, presetResult.ExitCode);
-        Assert.Contains("PAYG Global Standard", presetResult.Output);
-        Assert.Contains("PAYG Regional Standard", presetResult.Output);
-        Assert.DoesNotContain("PAYG Data Zone Standard", presetResult.Output);
+        Assert.Contains("Global", presetTable);
+        Assert.Contains("Regional", presetTable);
+        Assert.DoesNotContain("Data Zone", presetTable);
         Assert.Equal(0, overrideResult.ExitCode);
-        Assert.Contains("PAYG Data Zone Standard", overrideResult.Output);
-        Assert.DoesNotContain("PAYG Global Standard", overrideResult.Output);
+        Assert.Contains("Data Zone", overrideTable);
+        Assert.DoesNotContain("Global", overrideTable);
     }
 
     [Fact]
